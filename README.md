@@ -1,5 +1,24 @@
 # Clash Village
 
-Web strategy game inspired by Clash of Clans: build a village, gather resources, train troops, and raid.
+Clash Village is an original browser strategy game about growing a frontier
+settlement, gathering resources, training troops, and launching raids.
 
-Built incrementally by a Cursor Automation agent.
+## Run locally
+
+Requires Node.js 20 or newer.
+
+```bash
+npm start
+```
+
+Open [http://localhost:4173](http://localhost:4173). Progress is saved in the
+browser's local storage.
+
+## Test
+
+```bash
+npm test
+```
+
+The project uses only browser APIs and Node's built-in modules, so there are no
+packages to install.
