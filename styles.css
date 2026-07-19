@@ -185,6 +185,7 @@ h2 {
 }
 
 .guide-panel {
+  position: relative;
   padding: 22px;
 }
 
@@ -258,6 +259,12 @@ h2 {
   box-shadow:
     inset 0 0 0 3px rgba(255, 255, 255, 0.08),
     0 4px 0 rgba(30, 38, 24, 0.5);
+}
+
+.village-tile.occupied.inspected {
+  z-index: 2;
+  outline: 3px solid var(--gold);
+  outline-offset: -1px;
 }
 
 .village-tile.building-field {
@@ -378,6 +385,137 @@ h2 {
   line-height: 1.45;
 }
 
+.building-inspector {
+  text-align: center;
+}
+
+.inspector-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.inspector-close:hover,
+.inspector-close:focus-visible {
+  border-color: var(--gold);
+  color: var(--ink);
+}
+
+.inspector-icon {
+  display: grid;
+  width: 68px;
+  height: 68px;
+  margin: 8px auto 18px;
+  place-items: center;
+  border: 1px solid rgba(243, 201, 105, 0.35);
+  border-radius: 18px;
+  color: var(--gold);
+  background: rgba(243, 201, 105, 0.1);
+  font-size: 2rem;
+}
+
+.level-badge {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: #172017;
+  background: var(--gold);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.inspector-description {
+  margin: 14px 0 18px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.output-card {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.output-card span,
+.output-card strong,
+.upgrade-block span,
+.upgrade-block strong,
+.upgrade-block small {
+  display: block;
+}
+
+.output-card span,
+.upgrade-block span {
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+}
+
+.output-card strong {
+  font-size: 0.78rem;
+}
+
+.upgrade-block {
+  margin-top: 18px;
+  padding-top: 17px;
+  border-top: 1px solid var(--line);
+  text-align: left;
+}
+
+.upgrade-block > strong {
+  min-height: 32px;
+  color: #e0c98a;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.upgrade-button {
+  width: 100%;
+  margin: 12px 0 8px;
+  padding: 11px 12px;
+  border: 1px solid #f8dd98;
+  border-radius: 10px;
+  color: #172017;
+  background: var(--gold);
+  box-shadow: 0 3px 0 #9d7430;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.upgrade-button:hover:not(:disabled),
+.upgrade-button:focus-visible:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.upgrade-button:disabled {
+  border-color: var(--line);
+  color: var(--muted);
+  background: #303831;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.upgrade-block small {
+  min-height: 32px;
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.45;
+}
+
 .build-panel {
   margin-top: 16px;
   padding: 18px;
@@ -459,10 +597,6 @@ footer {
 @media (max-width: 850px) {
   .play-area {
     grid-template-columns: 1fr;
-  }
-
-  .guide-panel {
-    display: none;
   }
 
   .build-menu {

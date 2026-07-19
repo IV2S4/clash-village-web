@@ -76,26 +76,49 @@
           </div>
 
           <aside class="guide-panel">
-            <p class="eyebrow">Settlement journal</p>
-            <h2>Your first outpost</h2>
-            <ol class="quest-list">
-              <li>
-                <span>1</span>
-                <div><strong>Gather</strong><small>Build producers for a steady income.</small></div>
-              </li>
-              <li>
-                <span>2</span>
-                <div><strong>Expand</strong><small>Place structures on any open tile.</small></div>
-              </li>
-              <li>
-                <span>3</span>
-                <div><strong>Return</strong><small>Your village keeps working for up to 4 hours.</small></div>
-              </li>
-            </ol>
-            <div class="coming-soon">
-              <span>Next frontier</span>
-              <strong>Upgrades, troop training & raids</strong>
+            <div id="settlement-journal">
+              <p class="eyebrow">Settlement journal</p>
+              <h2>Your first outpost</h2>
+              <ol class="quest-list">
+                <li>
+                  <span>1</span>
+                  <div><strong>Gather</strong><small>Build producers for a steady income.</small></div>
+                </li>
+                <li>
+                  <span>2</span>
+                  <div><strong>Expand</strong><small>Place structures on any open tile.</small></div>
+                </li>
+                <li>
+                  <span>3</span>
+                  <div><strong>Improve</strong><small>Inspect structures and raise their level.</small></div>
+                </li>
+              </ol>
+              <div class="coming-soon">
+                <span>Next frontier</span>
+                <strong>Troop training & raids</strong>
+              </div>
             </div>
+
+            <section id="building-inspector" class="building-inspector" hidden>
+              <button id="close-inspector" class="inspector-close" type="button" aria-label="Close building details">×</button>
+              <span id="inspector-icon" class="inspector-icon" aria-hidden="true"></span>
+              <p class="eyebrow">Building details</p>
+              <h2 id="inspector-name"></h2>
+              <span id="inspector-level" class="level-badge"></span>
+              <p id="inspector-description" class="inspector-description"></p>
+              <div class="output-card">
+                <span id="inspector-output-label">Current output</span>
+                <strong id="inspector-output"></strong>
+              </div>
+              <div class="upgrade-block">
+                <span id="upgrade-label">Upgrade cost</span>
+                <strong id="upgrade-cost"></strong>
+                <button id="upgrade-building" class="upgrade-button" type="button">
+                  Upgrade building
+                </button>
+                <small id="upgrade-requirement"></small>
+              </div>
+            </section>
           </aside>
         </section>
 

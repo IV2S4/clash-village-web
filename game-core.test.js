@@ -2,13 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   BASE_CAPACITY,
+  MAX_BUILDING_LEVEL,
   MAX_OFFLINE_SECONDS,
   advanceState,
   createInitialState,
   getCapacity,
   getProductionRates,
+  getUpgradeCost,
   hydrateState,
   placeBuilding,
+  upgradeBuilding,
 } from "./game-core.js";
 
 test("a new village starts with a hearth and starter resources", () => {
@@ -70,6 +73,79 @@ test("storehouses raise capacity and production never exceeds it", () => {
   );
 });
 
+test("the Hearth upgrades and unlocks higher building levels", () => {
+  const initial = createInitialState(1_000);
+  const hearth = initial.buildings[0];
+  const upgraded = upgradeBuilding(initial, hearth.id, 1_000);
+
+  assert.equal(upgraded.error, undefined);
+  assert.equal(upgraded.building.level, 2);
+  assert.deepEqual(upgraded.state.resources, {
+    timber: 50,
+    stone: 30,
+    grain: 30,
+  });
+});
+
+test("producer upgrades are gated by the Hearth level", () => {
+  const richVillage = {
+    ...createInitialState(1_000),
+    resources: { timber: 1_000, stone: 1_000, grain: 1_000 },
+  };
+  const placed = placeBuilding(richVillage, "timberYard", 0, 0, 1_000);
+  const blocked = upgradeBuilding(
+    placed.state,
+    placed.building.id,
+    1_000,
+  );
+
+  assert.equal(blocked.error, "Upgrade the Village Hearth to level 2 first.");
+
+  const hearthUpgraded = upgradeBuilding(
+    placed.state,
+    placed.state.buildings[0].id,
+    1_000,
+  );
+  const producerUpgraded = upgradeBuilding(
+    hearthUpgraded.state,
+    placed.building.id,
+    1_000,
+  );
+
+  assert.equal(producerUpgraded.error, undefined);
+  assert.equal(producerUpgraded.building.level, 2);
+  assert.equal(getProductionRates(producerUpgraded.state).timber, 4);
+});
+
+test("upgrade prices scale with the current building level", () => {
+  const levelOne = { type: "stoneworks", level: 1 };
+  const levelTwo = { type: "stoneworks", level: 2 };
+
+  assert.deepEqual(getUpgradeCost(levelOne), {
+    timber: 45,
+    stone: 25,
+    grain: 20,
+  });
+  assert.deepEqual(getUpgradeCost(levelTwo), {
+    timber: 75,
+    stone: 40,
+    grain: 35,
+  });
+});
+
+test("fully upgraded buildings reject further improvements", () => {
+  const initial = createInitialState(1_000);
+  const maxed = {
+    ...initial,
+    buildings: [
+      { ...initial.buildings[0], level: MAX_BUILDING_LEVEL },
+    ],
+  };
+  const result = upgradeBuilding(maxed, "hearth-1", 1_000);
+
+  assert.equal(result.error, "This building is fully upgraded.");
+});
+
 test("offline gains are capped at four hours", () => {
   const initial = createInitialState(1_000);
   const producing = placeBuilding(initial, "timberYard", 0, 0, 1_000).state;
@@ -101,4 +177,13 @@ test("invalid saves fall back to a fresh village", () => {
 
   assert.equal(state.lastUpdated, 5_000);
   assert.equal(state.buildings[0].type, "hearth");
+});
+
+test("older saves gain level-one buildings during hydration", () => {
+  const oldSave = createInitialState(1_000);
+  delete oldSave.buildings[0].level;
+
+  const state = hydrateState(oldSave, 1_000);
+
+  assert.equal(state.buildings[0].level, 1);
 });

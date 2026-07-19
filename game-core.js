@@ -2,6 +2,7 @@ export const GRID_SIZE = 8;
 export const RESOURCE_KEYS = ["timber", "stone", "grain"];
 export const BASE_CAPACITY = 500;
 export const MAX_OFFLINE_SECONDS = 4 * 60 * 60;
+export const MAX_BUILDING_LEVEL = 5;
 
 export const BUILDING_TYPES = Object.freeze({
   hearth: {
@@ -10,6 +11,7 @@ export const BUILDING_TYPES = Object.freeze({
     description: "The heart of your settlement.",
     cost: {},
     production: {},
+    upgradeCost: { timber: 100, stone: 70, grain: 50 },
   },
   timberYard: {
     name: "Timber Yard",
@@ -17,6 +19,7 @@ export const BUILDING_TYPES = Object.freeze({
     description: "Produces 2 timber each second.",
     cost: { stone: 25, grain: 10 },
     production: { timber: 2 },
+    upgradeCost: { timber: 30, stone: 40, grain: 20 },
   },
   stoneworks: {
     name: "Stoneworks",
@@ -24,6 +27,7 @@ export const BUILDING_TYPES = Object.freeze({
     description: "Produces 1.5 stone each second.",
     cost: { timber: 35, grain: 10 },
     production: { stone: 1.5 },
+    upgradeCost: { timber: 45, stone: 25, grain: 20 },
   },
   field: {
     name: "Sunfield",
@@ -31,6 +35,7 @@ export const BUILDING_TYPES = Object.freeze({
     description: "Produces 1.5 grain each second.",
     cost: { timber: 25, stone: 10 },
     production: { grain: 1.5 },
+    upgradeCost: { timber: 35, stone: 25, grain: 15 },
   },
   storehouse: {
     name: "Storehouse",
@@ -39,6 +44,7 @@ export const BUILDING_TYPES = Object.freeze({
     cost: { timber: 50, stone: 35, grain: 20 },
     production: {},
     capacity: 300,
+    upgradeCost: { timber: 70, stone: 55, grain: 30 },
   },
 });
 
@@ -56,6 +62,7 @@ export function createInitialState(now = Date.now()) {
         type: "hearth",
         x: Math.floor(GRID_SIZE / 2) - 1,
         y: Math.floor(GRID_SIZE / 2) - 1,
+        level: 1,
       },
     ],
     lastUpdated: now,
@@ -67,7 +74,10 @@ export function getCapacity(state) {
   return (
     BASE_CAPACITY +
     state.buildings.reduce(
-      (total, building) => total + (BUILDING_TYPES[building.type]?.capacity ?? 0),
+      (total, building) =>
+        total +
+        (BUILDING_TYPES[building.type]?.capacity ?? 0) *
+          getBuildingLevel(building),
       0,
     )
   );
@@ -79,7 +89,7 @@ export function getProductionRates(state) {
   for (const building of state.buildings) {
     const production = BUILDING_TYPES[building.type]?.production ?? {};
     for (const [resource, amount] of Object.entries(production)) {
-      rates[resource] += amount;
+      rates[resource] += amount * getBuildingLevel(building);
     }
   }
 
@@ -122,6 +132,31 @@ export function getBuildingAt(state, x, y) {
   );
 }
 
+export function getBuildingLevel(building) {
+  return Number.isInteger(building?.level)
+    ? Math.min(MAX_BUILDING_LEVEL, Math.max(1, building.level))
+    : 1;
+}
+
+export function getHearthLevel(state) {
+  return getBuildingLevel(
+    state.buildings.find((building) => building.type === "hearth"),
+  );
+}
+
+export function getUpgradeCost(building) {
+  const definition = BUILDING_TYPES[building?.type];
+  if (!definition) return {};
+
+  const multiplier = 1.6 ** (getBuildingLevel(building) - 1);
+  return Object.fromEntries(
+    Object.entries(definition.upgradeCost).map(([resource, amount]) => [
+      resource,
+      Math.ceil((amount * multiplier) / 5) * 5,
+    ]),
+  );
+}
+
 export function placeBuilding(state, type, x, y, now = Date.now()) {
   const definition = BUILDING_TYPES[type];
   if (!definition || type === "hearth") {
@@ -158,6 +193,7 @@ export function placeBuilding(state, type, x, y, now = Date.now()) {
     type,
     x,
     y,
+    level: 1,
   };
 
   return {
@@ -168,6 +204,54 @@ export function placeBuilding(state, type, x, y, now = Date.now()) {
       nextBuildingId: currentState.nextBuildingId + 1,
     },
     building,
+  };
+}
+
+export function upgradeBuilding(state, buildingId, now = Date.now()) {
+  const currentState = advanceState(state, now);
+  const building = currentState.buildings.find(
+    (candidate) => candidate.id === buildingId,
+  );
+
+  if (!building) {
+    return { state: currentState, error: "That building could not be found." };
+  }
+
+  const currentLevel = getBuildingLevel(building);
+  if (currentLevel >= MAX_BUILDING_LEVEL) {
+    return { state: currentState, error: "This building is fully upgraded." };
+  }
+
+  if (
+    building.type !== "hearth" &&
+    currentLevel >= getHearthLevel(currentState)
+  ) {
+    return {
+      state: currentState,
+      error: `Upgrade the Village Hearth to level ${currentLevel + 1} first.`,
+    };
+  }
+
+  const cost = getUpgradeCost(building);
+  if (!canAfford(currentState, cost)) {
+    return { state: currentState, error: "You need more resources to upgrade." };
+  }
+
+  const resources = { ...currentState.resources };
+  for (const [resource, amount] of Object.entries(cost)) {
+    resources[resource] -= amount;
+  }
+
+  const upgradedBuilding = { ...building, level: currentLevel + 1 };
+  return {
+    state: {
+      ...currentState,
+      resources,
+      buildings: currentState.buildings.map((candidate) =>
+        candidate.id === buildingId ? upgradedBuilding : candidate,
+      ),
+    },
+    building: upgradedBuilding,
   };
 }
 
@@ -182,16 +266,21 @@ export function hydrateState(value, now = Date.now()) {
     return createInitialState(now);
   }
 
-  const validBuildings = value.buildings.filter(
-    (building) =>
-      BUILDING_TYPES[building.type] &&
-      Number.isInteger(building.x) &&
-      Number.isInteger(building.y) &&
-      building.x >= 0 &&
-      building.y >= 0 &&
-      building.x < GRID_SIZE &&
-      building.y < GRID_SIZE,
-  );
+  const validBuildings = value.buildings
+    .filter(
+      (building) =>
+        BUILDING_TYPES[building.type] &&
+        Number.isInteger(building.x) &&
+        Number.isInteger(building.y) &&
+        building.x >= 0 &&
+        building.y >= 0 &&
+        building.x < GRID_SIZE &&
+        building.y < GRID_SIZE,
+    )
+    .map((building) => ({
+      ...building,
+      level: getBuildingLevel(building),
+    }));
 
   const resources = Object.fromEntries(
     RESOURCE_KEYS.map((resource) => [

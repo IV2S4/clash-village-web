@@ -1,14 +1,19 @@
 import {
   BUILDING_TYPES,
   GRID_SIZE,
+  MAX_BUILDING_LEVEL,
   RESOURCE_KEYS,
   advanceState,
   createInitialState,
   getBuildingAt,
+  getBuildingLevel,
   getCapacity,
+  getHearthLevel,
   getProductionRates,
+  getUpgradeCost,
   hydrateState,
   placeBuilding,
+  upgradeBuilding,
 } from "./game-core.js";
 
 const SAVE_KEY = "clash-village-save-v1";
@@ -20,11 +25,15 @@ const RESOURCE_LABELS = {
 
 let state = loadGame();
 let selectedBuildingType = null;
+let selectedBuildingId = null;
 
 const grid = document.querySelector("#village-grid");
 const buildMenu = document.querySelector("#build-menu");
 const selectionText = document.querySelector("#selection-text");
 const message = document.querySelector("#message");
+const settlementJournal = document.querySelector("#settlement-journal");
+const inspector = document.querySelector("#building-inspector");
+const upgradeButton = document.querySelector("#upgrade-building");
 
 function loadGame() {
   try {
@@ -85,6 +94,7 @@ function createBuildMenu() {
     button.addEventListener("click", () => {
       selectedBuildingType =
         selectedBuildingType === type ? null : type;
+      selectedBuildingId = null;
       render();
       if (selectedBuildingType) {
         announce(`Choose an empty tile for ${definition.name}.`);
@@ -119,12 +129,17 @@ function handleTileClick(event) {
 
   if (existing) {
     const definition = BUILDING_TYPES[existing.type];
-    announce(`${definition.name}: ${definition.description}`);
+    selectedBuildingType = null;
+    selectedBuildingId = existing.id;
+    announce(`${definition.name} level ${getBuildingLevel(existing)} selected.`);
+    render();
     return;
   }
 
   if (!selectedBuildingType) {
+    selectedBuildingId = null;
     announce("Select a building below, then choose an empty tile.");
+    render();
     return;
   }
 
@@ -137,6 +152,7 @@ function handleTileClick(event) {
     const definition = BUILDING_TYPES[selectedBuildingType];
     announce(`${definition.name} built. Production is already running!`, "success");
     selectedBuildingType = null;
+    selectedBuildingId = result.building.id;
     saveGame();
   }
 
@@ -155,9 +171,10 @@ function renderGrid() {
     if (building) {
       const definition = BUILDING_TYPES[building.type];
       tile.classList.add("occupied", `building-${building.type}`);
+      tile.classList.toggle("inspected", building.id === selectedBuildingId);
       tile.setAttribute(
         "aria-label",
-        `${definition.name}, row ${y + 1}, column ${x + 1}`,
+        `${definition.name}, level ${getBuildingLevel(building)}, row ${y + 1}, column ${x + 1}`,
       );
 
       const icon = document.createElement("span");
@@ -167,7 +184,7 @@ function renderGrid() {
 
       const label = document.createElement("span");
       label.className = "tile-label";
-      label.textContent = definition.name;
+      label.textContent = `${definition.name} · L${getBuildingLevel(building)}`;
       tile.append(icon, label);
     } else {
       tile.setAttribute(
@@ -194,11 +211,106 @@ function renderBuildMenu() {
     : "Select a structure to build";
 }
 
+function getOutputSummary(building) {
+  const definition = BUILDING_TYPES[building.type];
+  const level = getBuildingLevel(building);
+  const production = Object.entries(definition.production);
+
+  if (production.length > 0) {
+    return production
+      .map(
+        ([resource, amount]) =>
+          `${(amount * level).toFixed(1)} ${RESOURCE_LABELS[resource]} / second`,
+      )
+      .join(" · ");
+  }
+
+  if (definition.capacity) {
+    return `+${(definition.capacity * level).toLocaleString()} resource capacity`;
+  }
+
+  return `Supports level ${level} village buildings`;
+}
+
+function renderInspector() {
+  const building = state.buildings.find(
+    (candidate) => candidate.id === selectedBuildingId,
+  );
+
+  settlementJournal.hidden = Boolean(building);
+  inspector.hidden = !building;
+  if (!building) return;
+
+  const definition = BUILDING_TYPES[building.type];
+  const level = getBuildingLevel(building);
+  const hearthLevel = getHearthLevel(state);
+  const isMaxLevel = level >= MAX_BUILDING_LEVEL;
+  const isHearthGated =
+    building.type !== "hearth" && level >= hearthLevel;
+
+  document.querySelector("#inspector-icon").textContent = definition.icon;
+  document.querySelector("#inspector-name").textContent = definition.name;
+  document.querySelector("#inspector-level").textContent = `Level ${level}`;
+  document.querySelector("#inspector-description").textContent =
+    definition.description;
+  document.querySelector("#inspector-output").textContent =
+    getOutputSummary(building);
+
+  const cost = getUpgradeCost(building);
+  document.querySelector("#upgrade-cost").textContent = isMaxLevel
+    ? "All improvements complete"
+    : formatCost(cost);
+
+  upgradeButton.disabled = isMaxLevel;
+  upgradeButton.textContent = isMaxLevel
+    ? "Maximum level"
+    : `Upgrade to level ${level + 1}`;
+
+  const requirement = document.querySelector("#upgrade-requirement");
+  if (isMaxLevel) {
+    requirement.textContent = "This building has reached its final level.";
+  } else if (isHearthGated) {
+    requirement.textContent = `Requires Village Hearth level ${level + 1}.`;
+  } else if (building.type === "hearth") {
+    requirement.textContent =
+      "Each Hearth level unlocks the same level for other buildings.";
+  } else {
+    requirement.textContent = `Village Hearth level ${hearthLevel} permits this upgrade.`;
+  }
+}
+
 function render() {
   renderResources();
   renderGrid();
   renderBuildMenu();
+  renderInspector();
 }
+
+upgradeButton.addEventListener("click", () => {
+  if (!selectedBuildingId) return;
+
+  const result = upgradeBuilding(state, selectedBuildingId);
+  state = result.state;
+
+  if (result.error) {
+    announce(result.error, "error");
+  } else {
+    const definition = BUILDING_TYPES[result.building.type];
+    announce(
+      `${definition.name} upgraded to level ${result.building.level}!`,
+      "success",
+    );
+    saveGame();
+  }
+
+  render();
+});
+
+document.querySelector("#close-inspector").addEventListener("click", () => {
+  selectedBuildingId = null;
+  render();
+  announce("Building details closed.");
+});
 
 document.querySelector("#reset-game").addEventListener("click", () => {
   const confirmed = window.confirm(
@@ -208,6 +320,7 @@ document.querySelector("#reset-game").addEventListener("click", () => {
 
   state = createInitialState();
   selectedBuildingType = null;
+  selectedBuildingId = null;
   saveGame();
   render();
   announce("A fresh village is ready.", "success");
