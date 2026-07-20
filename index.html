@@ -144,6 +144,55 @@
           </div>
         </section>
 
+        <section class="raid-panel" aria-labelledby="raid-title">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Frontier map</p>
+              <h2 id="raid-title">Raid expeditions</h2>
+            </div>
+            <div class="raid-heading-actions">
+              <span id="raid-record">0 victories · 0 defeats</span>
+              <button id="scout-targets" class="text-button" type="button">
+                Scout new targets
+              </button>
+            </div>
+          </div>
+          <p class="raid-intro">
+            Choose a rival frontier camp, then commit ready Trailguards. A
+            stronger company improves the outcome but every expedition risks
+            casualties.
+          </p>
+          <div
+            id="raid-targets"
+            class="raid-targets"
+            aria-label="Available raid targets"
+          ></div>
+          <div class="deployment-card">
+            <label for="raid-troops">
+              Trailguards to deploy
+              <input
+                id="raid-troops"
+                type="number"
+                min="1"
+                max="0"
+                step="1"
+                value="0"
+                inputmode="numeric"
+              />
+            </label>
+            <button id="launch-raid" class="primary-button" type="button">
+              Train Trailguards first
+            </button>
+          </div>
+          <div
+            id="raid-result"
+            class="raid-result"
+            role="status"
+            aria-live="polite"
+            hidden
+          ></div>
+        </section>
+
         <section class="build-panel" aria-labelledby="build-title">
           <div class="panel-heading">
             <div>

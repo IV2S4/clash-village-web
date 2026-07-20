@@ -17,6 +17,8 @@ import {
   getUpgradeCost,
   hydrateState,
   placeBuilding,
+  resolveRaid,
+  scoutRaidTargets,
   trainTroop,
   upgradeBuilding,
 } from "./game-core.js";
@@ -31,6 +33,7 @@ const RESOURCE_LABELS = {
 let state = loadGame();
 let selectedBuildingType = null;
 let selectedBuildingId = null;
+let selectedRaidTargetId = state.raidTargets[0]?.id ?? null;
 
 const grid = document.querySelector("#village-grid");
 const buildMenu = document.querySelector("#build-menu");
@@ -50,6 +53,12 @@ const armyCount = document.querySelector("#army-count");
 const queueCapacity = document.querySelector("#queue-capacity");
 const trainingQueue = document.querySelector("#training-queue");
 const trainTrailguardButton = document.querySelector("#train-trailguard");
+const raidTargets = document.querySelector("#raid-targets");
+const raidTroops = document.querySelector("#raid-troops");
+const launchRaidButton = document.querySelector("#launch-raid");
+const scoutTargetsButton = document.querySelector("#scout-targets");
+const raidRecord = document.querySelector("#raid-record");
+const raidResult = document.querySelector("#raid-result");
 
 function loadGame() {
   try {
@@ -339,12 +348,105 @@ function renderArmy() {
         : "Train Trailguard";
 }
 
+function createRaidTargetCard(target) {
+  const button = document.createElement("button");
+  const heading = document.createElement("span");
+  const name = document.createElement("strong");
+  const tier = document.createElement("small");
+  const details = document.createElement("span");
+  const loot = document.createElement("span");
+
+  button.type = "button";
+  button.className = "raid-target-card";
+  button.classList.toggle("selected", target.id === selectedRaidTargetId);
+  button.setAttribute(
+    "aria-pressed",
+    String(target.id === selectedRaidTargetId),
+  );
+  heading.className = "raid-target-heading";
+  name.textContent = target.name;
+  tier.textContent = `Threat ${target.tier}`;
+  details.className = "raid-target-detail";
+  details.textContent =
+    `${target.defense} defense · ${target.recommendedTroops} Trailguards advised`;
+  loot.className = "raid-target-loot";
+  loot.textContent = `Spoils: ${formatCost(target.loot)}`;
+  heading.append(name, tier);
+  button.append(heading, details, loot);
+  button.addEventListener("click", () => {
+    selectedRaidTargetId = target.id;
+    raidTroops.value = Math.min(
+      state.army.trailguard,
+      target.recommendedTroops,
+    );
+    renderRaids();
+  });
+  return button;
+}
+
+function renderRaidResult() {
+  const result = state.lastRaid;
+  raidResult.hidden = !result;
+  if (!result) return;
+
+  raidResult.className = `raid-result ${result.victory ? "victory" : "defeat"}`;
+  const title = document.createElement("strong");
+  const detail = document.createElement("span");
+  title.textContent = result.victory
+    ? `Victory at ${result.targetName}`
+    : `Defeat at ${result.targetName}`;
+
+  const casualtyText =
+    `${result.casualties} lost · ${result.survivors} returned`;
+  const lootText = Object.values(result.loot).some((amount) => amount > 0)
+    ? ` · Recovered ${formatCost(result.loot)}`
+    : "";
+  detail.textContent = `${casualtyText}${lootText}`;
+  raidResult.replaceChildren(title, detail);
+}
+
+function renderRaids() {
+  if (!state.raidTargets.some((target) => target.id === selectedRaidTargetId)) {
+    selectedRaidTargetId = state.raidTargets[0]?.id ?? null;
+  }
+
+  raidTargets.replaceChildren(
+    ...state.raidTargets.map(createRaidTargetCard),
+  );
+  raidRecord.textContent =
+    `${state.raidStats.wins} victories · ${state.raidStats.losses} defeats`;
+
+  const selectedTarget = state.raidTargets.find(
+    (target) => target.id === selectedRaidTargetId,
+  );
+  const readyTroops = state.army.trailguard;
+  raidTroops.max = readyTroops;
+  raidTroops.disabled = readyTroops === 0;
+
+  const currentDeployment = Number(raidTroops.value);
+  if (
+    !Number.isInteger(currentDeployment) ||
+    currentDeployment < 1 ||
+    currentDeployment > readyTroops
+  ) {
+    raidTroops.value = readyTroops
+      ? Math.min(readyTroops, selectedTarget?.recommendedTroops ?? 1)
+      : 0;
+  }
+
+  launchRaidButton.disabled = !selectedTarget || readyTroops === 0;
+  launchRaidButton.textContent =
+    readyTroops === 0 ? "Train Trailguards first" : "Launch raid";
+  renderRaidResult();
+}
+
 function render() {
   renderResources();
   renderGrid();
   renderBuildMenu();
   renderInspector();
   renderArmy();
+  renderRaids();
 }
 
 upgradeButton.addEventListener("click", () => {
@@ -381,6 +483,38 @@ trainTrailguardButton.addEventListener("click", () => {
   render();
 });
 
+scoutTargetsButton.addEventListener("click", () => {
+  state = scoutRaidTargets(state);
+  selectedRaidTargetId = state.raidTargets[0].id;
+  saveGame();
+  renderRaids();
+  announce("New frontier targets have been scouted.");
+});
+
+launchRaidButton.addEventListener("click", () => {
+  const result = resolveRaid(
+    state,
+    selectedRaidTargetId,
+    Number(raidTroops.value),
+  );
+  state = result.state;
+
+  if (result.error) {
+    announce(result.error, "error");
+  } else {
+    selectedRaidTargetId = state.raidTargets[0].id;
+    announce(
+      result.result.victory
+        ? `Raid won! Supplies from ${result.result.targetName} reached the village.`
+        : `The company withdrew from ${result.result.targetName}. Train and try again.`,
+      result.result.victory ? "success" : "error",
+    );
+    saveGame();
+  }
+
+  render();
+});
+
 document.querySelector("#reset-game").addEventListener("click", () => {
   const confirmed = window.confirm(
     "Start a new village? Your current buildings and resources will be erased.",
@@ -390,6 +524,7 @@ document.querySelector("#reset-game").addEventListener("click", () => {
   state = createInitialState();
   selectedBuildingType = null;
   selectedBuildingId = null;
+  selectedRaidTargetId = state.raidTargets[0].id;
   saveGame();
   render();
   announce("A fresh village is ready.", "success");

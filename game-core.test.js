@@ -5,6 +5,7 @@ import {
   MAX_OFFLINE_SECONDS,
   advanceState,
   createInitialState,
+  generateRaidTargets,
   getBuildingLevel,
   getCapacity,
   getProductionRates,
@@ -12,6 +13,8 @@ import {
   getUpgradeCost,
   hydrateState,
   placeBuilding,
+  resolveRaid,
+  scoutRaidTargets,
   trainTroop,
   upgradeBuilding,
 } from "./game-core.js";
@@ -252,4 +255,97 @@ test("legacy saves hydrate with an empty army and training queue", () => {
   assert.deepEqual(state.army, { trailguard: 0 });
   assert.deepEqual(state.trainingQueue, []);
   assert.equal(state.nextTrainingId, 1);
+  assert.equal(state.raidTargets.length, 3);
+  assert.deepEqual(state.raidStats, { wins: 0, losses: 0 });
+});
+
+test("frontier scouting generates deterministic escalating target choices", () => {
+  const first = generateRaidTargets(123, 1);
+  const repeated = generateRaidTargets(123, 1);
+
+  assert.deepEqual(first, repeated);
+  assert.equal(first.targets.length, 3);
+  assert.deepEqual(
+    first.targets.map((target) => target.recommendedTroops),
+    [1, 2, 3],
+  );
+  assert.ok(
+    first.targets.every(
+      (target) => target.defense <= target.recommendedTroops * 12,
+    ),
+  );
+});
+
+test("raids require a current target and enough ready Trailguards", () => {
+  const state = {
+    ...createInitialState(1_000),
+    army: { trailguard: 1 },
+  };
+  const targetId = state.raidTargets[0].id;
+
+  assert.equal(
+    resolveRaid(state, "missing-target", 1, 1_000).error,
+    "Choose an available raid target.",
+  );
+  assert.equal(
+    resolveRaid(state, targetId, 0, 1_000).error,
+    "Deploy at least one Trailguard.",
+  );
+  assert.equal(
+    resolveRaid(state, targetId, 2, 1_000).error,
+    "Not enough Trailguards are ready.",
+  );
+});
+
+test("a victorious raid applies casualties, loot, and a fresh target set", () => {
+  const initial = {
+    ...createInitialState(1_000),
+    resources: { timber: 0, stone: 0, grain: 0 },
+    army: { trailguard: 3 },
+  };
+  const target = initial.raidTargets[0];
+  const result = resolveRaid(initial, target.id, 1, 1_000);
+
+  assert.equal(result.error, undefined);
+  assert.equal(result.result.victory, true);
+  assert.equal(result.result.casualties, 1);
+  assert.equal(result.state.army.trailguard, 2);
+  assert.deepEqual(result.state.resources, target.loot);
+  assert.deepEqual(result.state.raidStats, { wins: 1, losses: 0 });
+  assert.equal(result.state.lastRaid.targetName, target.name);
+  assert.notDeepEqual(result.state.raidTargets, initial.raidTargets);
+});
+
+test("a defeated raid loses troops without awarding resources", () => {
+  const initial = {
+    ...createInitialState(1_000),
+    army: { trailguard: 2 },
+  };
+  const target = initial.raidTargets[2];
+  const result = resolveRaid(initial, target.id, 1, 1_000);
+
+  assert.equal(result.result.victory, false);
+  assert.equal(result.state.army.trailguard, 1);
+  assert.deepEqual(result.state.resources, initial.resources);
+  assert.deepEqual(result.result.loot, { timber: 0, stone: 0, grain: 0 });
+  assert.deepEqual(result.state.raidStats, { wins: 0, losses: 1 });
+});
+
+test("raid progress and manually scouted choices persist through hydration", () => {
+  const initial = {
+    ...createInitialState(1_000),
+    army: { trailguard: 2 },
+  };
+  const scouted = scoutRaidTargets(initial, 77);
+  const raided = resolveRaid(
+    scouted,
+    scouted.raidTargets[0].id,
+    1,
+    1_000,
+  ).state;
+  const hydrated = hydrateState(JSON.parse(JSON.stringify(raided)), 1_000);
+
+  assert.deepEqual(hydrated.raidTargets, raided.raidTargets);
+  assert.deepEqual(hydrated.raidStats, { wins: 1, losses: 0 });
+  assert.deepEqual(hydrated.lastRaid, raided.lastRaid);
 });

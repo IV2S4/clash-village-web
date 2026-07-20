@@ -4,6 +4,24 @@ export const BASE_CAPACITY = 500;
 export const MAX_OFFLINE_SECONDS = 4 * 60 * 60;
 export const MAX_BUILDING_LEVEL = 4;
 export const TRAINING_QUEUE_BASE_CAPACITY = 3;
+export const RAID_TARGET_COUNT = 3;
+
+const RAID_NAME_PREFIXES = [
+  "Briar",
+  "Cinder",
+  "Dusk",
+  "Moss",
+  "Raven",
+  "Thorn",
+];
+const RAID_NAME_SUFFIXES = [
+  "Crossing",
+  "Hollow",
+  "Outpost",
+  "Redoubt",
+  "Stockade",
+  "Watch",
+];
 
 export const TROOP_TYPES = Object.freeze({
   trailguard: {
@@ -70,6 +88,7 @@ export const BUILDING_TYPES = Object.freeze({
 });
 
 export function createInitialState(now = Date.now()) {
+  const raidOptions = generateRaidTargets(now);
   return {
     version: 1,
     resources: {
@@ -90,9 +109,13 @@ export function createInitialState(now = Date.now()) {
       trailguard: 0,
     },
     trainingQueue: [],
+    raidTargets: raidOptions.targets,
+    raidStats: { wins: 0, losses: 0 },
+    lastRaid: null,
     lastUpdated: now,
     nextBuildingId: 2,
     nextTrainingId: 1,
+    nextRaidSeed: raidOptions.nextSeed,
   };
 }
 
@@ -157,6 +180,52 @@ export function getTrainingQueueCapacity(state) {
     if (!baseCapacity) return total;
     return total + baseCapacity + getBuildingLevel(building) - 1;
   }, 0);
+}
+
+function nextRandom(seed) {
+  return (Math.imul(seed, 1_664_525) + 1_013_904_223) >>> 0;
+}
+
+export function generateRaidTargets(seed = Date.now(), hearthLevel = 1) {
+  let randomState = Number.isFinite(seed) ? Math.floor(seed) >>> 0 : 1;
+  const targets = Array.from({ length: RAID_TARGET_COUNT }, (_, index) => {
+    randomState = nextRandom(randomState);
+    const prefix = RAID_NAME_PREFIXES[randomState % RAID_NAME_PREFIXES.length];
+    randomState = nextRandom(randomState);
+    const suffix = RAID_NAME_SUFFIXES[randomState % RAID_NAME_SUFFIXES.length];
+    const tier = index + 1;
+    const recommendedTroops = Math.max(1, hearthLevel + tier - 1);
+    randomState = nextRandom(randomState);
+    const defense =
+      recommendedTroops * TROOP_TYPES.trailguard.power -
+      2 -
+      (randomState % 3);
+    const lootScale = recommendedTroops + hearthLevel;
+
+    return {
+      id: `frontier-${randomState}-${index}`,
+      name: `${prefix} ${suffix}`,
+      tier,
+      defense,
+      recommendedTroops,
+      loot: {
+        timber: 20 + lootScale * 18 + (randomState % 11),
+        stone: 15 + lootScale * 14 + (randomState % 7),
+        grain: 18 + lootScale * 16 + (randomState % 9),
+      },
+    };
+  });
+
+  return { targets, nextSeed: nextRandom(randomState) };
+}
+
+export function scoutRaidTargets(state, seed = state.nextRaidSeed ?? Date.now()) {
+  const generated = generateRaidTargets(seed, getHearthLevel(state));
+  return {
+    ...state,
+    raidTargets: generated.targets,
+    nextRaidSeed: generated.nextSeed,
+  };
 }
 
 export function advanceState(state, now = Date.now()) {
@@ -338,6 +407,113 @@ export function trainTroop(state, troopType, now = Date.now()) {
   };
 }
 
+export function resolveRaid(
+  state,
+  targetId,
+  troopsCommitted,
+  now = Date.now(),
+) {
+  const currentState = advanceState(state, now);
+  const target = currentState.raidTargets.find(
+    (candidate) => candidate.id === targetId,
+  );
+  if (!target) {
+    return { state: currentState, error: "Choose an available raid target." };
+  }
+
+  if (!Number.isInteger(troopsCommitted) || troopsCommitted < 1) {
+    return { state: currentState, error: "Deploy at least one Trailguard." };
+  }
+
+  const readyTroops = currentState.army.trailguard ?? 0;
+  if (troopsCommitted > readyTroops) {
+    return { state: currentState, error: "Not enough Trailguards are ready." };
+  }
+
+  const attackPower = troopsCommitted * TROOP_TYPES.trailguard.power;
+  const victory = attackPower >= target.defense;
+  const pressure = target.defense / Math.max(1, attackPower + target.defense);
+  const casualtyRate = victory
+    ? Math.min(0.6, pressure * 0.85)
+    : Math.min(1, 0.45 + pressure * 0.75);
+  const casualties = Math.min(
+    troopsCommitted,
+    Math.max(1, Math.ceil(troopsCommitted * casualtyRate)),
+  );
+  const capacity = getCapacity(currentState);
+  const resources = { ...currentState.resources };
+  const loot = Object.fromEntries(RESOURCE_KEYS.map((resource) => [resource, 0]));
+
+  if (victory) {
+    for (const resource of RESOURCE_KEYS) {
+      loot[resource] = Math.max(
+        0,
+        Math.min(target.loot[resource], capacity - resources[resource]),
+      );
+      resources[resource] += loot[resource];
+    }
+  }
+
+  const lastRaid = {
+    targetName: target.name,
+    victory,
+    committed: troopsCommitted,
+    casualties,
+    survivors: troopsCommitted - casualties,
+    loot,
+    completedAt: now,
+  };
+  const raidedState = scoutRaidTargets({
+    ...currentState,
+    resources,
+    army: {
+      ...currentState.army,
+      trailguard: readyTroops - casualties,
+    },
+    raidStats: {
+      wins: (currentState.raidStats?.wins ?? 0) + (victory ? 1 : 0),
+      losses: (currentState.raidStats?.losses ?? 0) + (victory ? 0 : 1),
+    },
+    lastRaid,
+  });
+
+  return { state: raidedState, result: lastRaid };
+}
+
+function isValidRaidTarget(target) {
+  return (
+    target &&
+    typeof target.id === "string" &&
+    typeof target.name === "string" &&
+    Number.isInteger(target.tier) &&
+    target.tier > 0 &&
+    Number.isFinite(target.defense) &&
+    target.defense > 0 &&
+    Number.isInteger(target.recommendedTroops) &&
+    target.recommendedTroops > 0 &&
+    RESOURCE_KEYS.every(
+      (resource) =>
+        Number.isFinite(target.loot?.[resource]) && target.loot[resource] >= 0,
+    )
+  );
+}
+
+function isValidRaidResult(result) {
+  return (
+    result &&
+    typeof result.targetName === "string" &&
+    typeof result.victory === "boolean" &&
+    Number.isInteger(result.committed) &&
+    Number.isInteger(result.casualties) &&
+    Number.isInteger(result.survivors) &&
+    Number.isFinite(result.completedAt) &&
+    RESOURCE_KEYS.every(
+      (resource) =>
+        Number.isFinite(result.loot?.[resource]) && result.loot[resource] >= 0,
+    )
+  );
+}
+
 export function hydrateState(value, now = Date.now()) {
   if (
     !value ||
@@ -389,6 +565,26 @@ export function hydrateState(value, now = Date.now()) {
           Number.isFinite(item.finishesAt),
       )
     : [];
+  const fallbackRaids = generateRaidTargets(
+    value.nextRaidSeed ?? now,
+    getBuildingLevel(
+      validBuildings.find((building) => building.type === "hearth"),
+    ),
+  );
+  const raidTargets =
+    Array.isArray(value.raidTargets) &&
+    value.raidTargets.length === RAID_TARGET_COUNT &&
+    value.raidTargets.every(isValidRaidTarget)
+      ? value.raidTargets
+      : fallbackRaids.targets;
+  const raidStats = {
+    wins: Number.isInteger(value.raidStats?.wins)
+      ? Math.max(0, value.raidStats.wins)
+      : 0,
+    losses: Number.isInteger(value.raidStats?.losses)
+      ? Math.max(0, value.raidStats.losses)
+      : 0,
+  };
 
   return advanceState(
     {
@@ -397,6 +593,9 @@ export function hydrateState(value, now = Date.now()) {
       buildings: validBuildings,
       army,
       trainingQueue,
+      raidTargets,
+      raidStats,
+      lastRaid: isValidRaidResult(value.lastRaid) ? value.lastRaid : null,
       lastUpdated: value.lastUpdated,
       nextBuildingId: Number.isInteger(value.nextBuildingId)
         ? value.nextBuildingId
@@ -404,6 +603,9 @@ export function hydrateState(value, now = Date.now()) {
       nextTrainingId: Number.isInteger(value.nextTrainingId)
         ? value.nextTrainingId
         : trainingQueue.length + 1,
+      nextRaidSeed: Number.isInteger(value.nextRaidSeed)
+        ? value.nextRaidSeed >>> 0
+        : fallbackRaids.nextSeed,
     },
     now,
   );
