@@ -4,7 +4,7 @@ Last updated: 2026-07-19
 
 ## Current state
 
-The first playable village-building slice is complete:
+The village economy and progression foundation is complete:
 
 - Responsive original game interface with an 8×8 village grid.
 - Three resources: timber, stone, and grain.
@@ -15,6 +15,10 @@ The first playable village-building slice is complete:
   opening choices.
 - Automatic local saves and up to four hours of offline production.
 - New-village reset flow.
+- Selectable building inspector with current effects, upgrade costs, and clear
+  locked/affordable/max-level states.
+- Four persistent building levels with scaling production and storage.
+- Village Hearth progression gates upgrades for every other structure.
 - Dependency-free local server and automated core-economy tests.
 
 ## MVP checklist
@@ -22,7 +26,7 @@ The first playable village-building slice is complete:
 - [x] Build a village on a placement grid.
 - [x] Gather resources over time.
 - [x] Place resource and storage buildings.
-- [ ] Inspect and upgrade buildings.
+- [x] Inspect and upgrade buildings.
 - [ ] Train troops using resources and elapsed time.
 - [ ] Choose a raid target and deploy trained troops.
 - [ ] Resolve a battle with victory/defeat, casualties, and loot.
@@ -31,7 +35,7 @@ The first playable village-building slice is complete:
 
 ## Next priority
 
-Add building inspection and upgrades. Each producer should have levels,
-increasing upgrade costs and stronger production; the Hearth level should gate
-the maximum level of other buildings. This creates the progression layer needed
-before troop training and raids are introduced.
+Add troop training. Introduce an original training building and at least one
+troop type, with resource costs, a small timed queue, persistent completion, and
+a visible army count. Keep the first version compact so the trained army can
+feed directly into the raid loop in the following slice.

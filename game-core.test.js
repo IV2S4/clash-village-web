@@ -5,10 +5,13 @@ import {
   MAX_OFFLINE_SECONDS,
   advanceState,
   createInitialState,
+  getBuildingLevel,
   getCapacity,
   getProductionRates,
+  getUpgradeCost,
   hydrateState,
   placeBuilding,
+  upgradeBuilding,
 } from "./game-core.js";
 
 test("a new village starts with a hearth and starter resources", () => {
@@ -101,4 +104,74 @@ test("invalid saves fall back to a fresh village", () => {
 
   assert.equal(state.lastUpdated, 5_000);
   assert.equal(state.buildings[0].type, "hearth");
+});
+
+test("legacy saves gain valid level-one buildings", () => {
+  const legacy = createInitialState(1_000);
+  delete legacy.buildings[0].level;
+
+  const state = hydrateState(legacy, 1_000);
+
+  assert.equal(getBuildingLevel(state.buildings[0]), 1);
+  assert.equal(state.buildings[0].level, 1);
+});
+
+test("the hearth gates upgrades for other buildings", () => {
+  const richVillage = {
+    ...createInitialState(1_000),
+    resources: { timber: 1_000, stone: 1_000, grain: 1_000 },
+  };
+  const withYard = placeBuilding(
+    richVillage,
+    "timberYard",
+    0,
+    0,
+    1_000,
+  ).state;
+
+  const blocked = upgradeBuilding(withYard, "timberYard-2", 1_000);
+  assert.equal(blocked.error, "Upgrade the Village Hearth to level 2 first.");
+
+  const hearthUpgraded = upgradeBuilding(withYard, "hearth-1", 1_000).state;
+  const yardUpgraded = upgradeBuilding(
+    hearthUpgraded,
+    "timberYard-2",
+    1_000,
+  );
+
+  assert.equal(yardUpgraded.error, undefined);
+  assert.equal(yardUpgraded.building.level, 2);
+  assert.equal(getProductionRates(yardUpgraded.state).timber, 3.5);
+});
+
+test("upgrades deduct scaling costs and improve storehouse capacity", () => {
+  const richVillage = {
+    ...createInitialState(1_000),
+    resources: { timber: 1_000, stone: 1_000, grain: 1_000 },
+  };
+  const withStorehouse = placeBuilding(
+    richVillage,
+    "storehouse",
+    0,
+    0,
+    1_000,
+  ).state;
+  const hearthUpgraded = upgradeBuilding(
+    withStorehouse,
+    "hearth-1",
+    1_000,
+  ).state;
+  const cost = getUpgradeCost("storehouse", 1);
+  const upgraded = upgradeBuilding(
+    hearthUpgraded,
+    "storehouse-2",
+    1_000,
+  ).state;
+
+  assert.equal(
+    upgraded.resources.timber,
+    hearthUpgraded.resources.timber - cost.timber,
+  );
+  assert.equal(getCapacity(upgraded), BASE_CAPACITY + 300 * 1.75);
+  assert.deepEqual(getUpgradeCost("storehouse", 4), null);
 });

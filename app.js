@@ -1,14 +1,21 @@
 import {
   BUILDING_TYPES,
   GRID_SIZE,
+  MAX_BUILDING_LEVEL,
   RESOURCE_KEYS,
   advanceState,
+  canAfford,
   createInitialState,
   getBuildingAt,
+  getBuildingLevel,
   getCapacity,
+  getHearthLevel,
+  getLevelMultiplier,
   getProductionRates,
+  getUpgradeCost,
   hydrateState,
   placeBuilding,
+  upgradeBuilding,
 } from "./game-core.js";
 
 const SAVE_KEY = "clash-village-save-v1";
@@ -20,11 +27,22 @@ const RESOURCE_LABELS = {
 
 let state = loadGame();
 let selectedBuildingType = null;
+let selectedBuildingId = null;
 
 const grid = document.querySelector("#village-grid");
 const buildMenu = document.querySelector("#build-menu");
 const selectionText = document.querySelector("#selection-text");
 const message = document.querySelector("#message");
+const inspectorEmpty = document.querySelector("#inspector-empty");
+const inspectorContent = document.querySelector("#inspector-content");
+const inspectorIcon = document.querySelector("#inspector-icon");
+const inspectorName = document.querySelector("#inspector-name");
+const inspectorLevel = document.querySelector("#inspector-level");
+const inspectorDescription = document.querySelector("#inspector-description");
+const inspectorOutput = document.querySelector("#inspector-output");
+const inspectorRequirement = document.querySelector("#inspector-requirement");
+const inspectorCost = document.querySelector("#inspector-cost");
+const upgradeButton = document.querySelector("#upgrade-building");
 
 function loadGame() {
   try {
@@ -44,6 +62,7 @@ function formatAmount(value) {
 }
 
 function formatCost(cost) {
+  if (!cost) return "Maximum level reached";
   return Object.entries(cost)
     .map(([resource, amount]) => `${amount} ${RESOURCE_LABELS[resource]}`)
     .join(" · ");
@@ -85,6 +104,7 @@ function createBuildMenu() {
     button.addEventListener("click", () => {
       selectedBuildingType =
         selectedBuildingType === type ? null : type;
+      selectedBuildingId = null;
       render();
       if (selectedBuildingType) {
         announce(`Choose an empty tile for ${definition.name}.`);
@@ -119,12 +139,17 @@ function handleTileClick(event) {
 
   if (existing) {
     const definition = BUILDING_TYPES[existing.type];
-    announce(`${definition.name}: ${definition.description}`);
+    selectedBuildingId = existing.id;
+    selectedBuildingType = null;
+    announce(`${definition.name} selected. Review its upgrade below.`);
+    render();
     return;
   }
 
   if (!selectedBuildingType) {
+    selectedBuildingId = null;
     announce("Select a building below, then choose an empty tile.");
+    render();
     return;
   }
 
@@ -137,6 +162,7 @@ function handleTileClick(event) {
     const definition = BUILDING_TYPES[selectedBuildingType];
     announce(`${definition.name} built. Production is already running!`, "success");
     selectedBuildingType = null;
+    selectedBuildingId = result.building.id;
     saveGame();
   }
 
@@ -154,10 +180,12 @@ function renderGrid() {
 
     if (building) {
       const definition = BUILDING_TYPES[building.type];
+      const level = getBuildingLevel(building);
       tile.classList.add("occupied", `building-${building.type}`);
+      tile.classList.toggle("selected-building", building.id === selectedBuildingId);
       tile.setAttribute(
         "aria-label",
-        `${definition.name}, row ${y + 1}, column ${x + 1}`,
+        `${definition.name}, level ${level}, row ${y + 1}, column ${x + 1}`,
       );
 
       const icon = document.createElement("span");
@@ -167,7 +195,7 @@ function renderGrid() {
 
       const label = document.createElement("span");
       label.className = "tile-label";
-      label.textContent = definition.name;
+      label.textContent = `${definition.name} · Lv ${level}`;
       tile.append(icon, label);
     } else {
       tile.setAttribute(
@@ -194,11 +222,95 @@ function renderBuildMenu() {
     : "Select a structure to build";
 }
 
+function getOutputText(building) {
+  const definition = BUILDING_TYPES[building.type];
+  const level = getBuildingLevel(building);
+  const multiplier = getLevelMultiplier(level);
+  const production = Object.entries(definition.production);
+
+  if (production.length > 0) {
+    return production
+      .map(
+        ([resource, amount]) =>
+          `${(amount * multiplier).toFixed(1)} ${RESOURCE_LABELS[resource].toLowerCase()}/s`,
+      )
+      .join(" · ");
+  }
+
+  if (definition.capacity) {
+    return `+${formatAmount(definition.capacity * multiplier)} capacity per resource`;
+  }
+
+  return `Allows village buildings to reach level ${level}`;
+}
+
+function renderInspector() {
+  const building = state.buildings.find(
+    (candidate) => candidate.id === selectedBuildingId,
+  );
+
+  inspectorEmpty.hidden = Boolean(building);
+  inspectorContent.hidden = !building;
+  if (!building) return;
+
+  const definition = BUILDING_TYPES[building.type];
+  const level = getBuildingLevel(building);
+  const nextLevel = level + 1;
+  const isMaxLevel = level >= MAX_BUILDING_LEVEL;
+  const isHearthGated =
+    building.type !== "hearth" && nextLevel > getHearthLevel(state);
+  const cost = getUpgradeCost(building.type, level);
+  const isAffordable = cost ? canAfford(state, cost) : false;
+
+  inspectorIcon.textContent = definition.icon;
+  inspectorName.textContent = definition.name;
+  inspectorLevel.textContent = `Level ${level} / ${MAX_BUILDING_LEVEL}`;
+  inspectorDescription.textContent = definition.description;
+  inspectorOutput.textContent = getOutputText(building);
+  inspectorCost.textContent = formatCost(cost);
+
+  if (isMaxLevel) {
+    inspectorRequirement.textContent = "Mastered";
+  } else if (isHearthGated) {
+    inspectorRequirement.textContent = `Requires Hearth level ${nextLevel}`;
+  } else if (!isAffordable) {
+    inspectorRequirement.textContent = "Gather more resources";
+  } else {
+    inspectorRequirement.textContent = `Ready for level ${nextLevel}`;
+  }
+
+  upgradeButton.textContent = isMaxLevel
+    ? "Fully upgraded"
+    : `Upgrade to level ${nextLevel}`;
+  upgradeButton.disabled = isMaxLevel || isHearthGated || !isAffordable;
+}
+
 function render() {
   renderResources();
   renderGrid();
   renderBuildMenu();
+  renderInspector();
 }
+
+upgradeButton.addEventListener("click", () => {
+  if (!selectedBuildingId) return;
+
+  const result = upgradeBuilding(state, selectedBuildingId);
+  state = result.state;
+
+  if (result.error) {
+    announce(result.error, "error");
+  } else {
+    const definition = BUILDING_TYPES[result.building.type];
+    announce(
+      `${definition.name} upgraded to level ${result.building.level}!`,
+      "success",
+    );
+    saveGame();
+  }
+
+  render();
+});
 
 document.querySelector("#reset-game").addEventListener("click", () => {
   const confirmed = window.confirm(
@@ -208,6 +320,7 @@ document.querySelector("#reset-game").addEventListener("click", () => {
 
   state = createInitialState();
   selectedBuildingType = null;
+  selectedBuildingId = null;
   saveGame();
   render();
   announce("A fresh village is ready.", "success");
@@ -232,4 +345,5 @@ setInterval(() => {
   state = advanceState(state);
   saveGame();
   renderResources();
+  renderInspector();
 }, 1000);

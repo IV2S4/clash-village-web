@@ -75,26 +75,39 @@
             </p>
           </div>
 
-          <aside class="guide-panel">
-            <p class="eyebrow">Settlement journal</p>
-            <h2>Your first outpost</h2>
-            <ol class="quest-list">
-              <li>
-                <span>1</span>
-                <div><strong>Gather</strong><small>Build producers for a steady income.</small></div>
-              </li>
-              <li>
-                <span>2</span>
-                <div><strong>Expand</strong><small>Place structures on any open tile.</small></div>
-              </li>
-              <li>
-                <span>3</span>
-                <div><strong>Return</strong><small>Your village keeps working for up to 4 hours.</small></div>
-              </li>
-            </ol>
-            <div class="coming-soon">
-              <span>Next frontier</span>
-              <strong>Upgrades, troop training & raids</strong>
+          <aside class="guide-panel" aria-labelledby="inspector-title">
+            <p class="eyebrow">Builder's ledger</p>
+            <h2 id="inspector-title">Building inspector</h2>
+            <div id="inspector-empty" class="inspector-empty">
+              <span aria-hidden="true">⌁</span>
+              <p>Select an occupied tile to inspect its output and upgrades.</p>
+            </div>
+            <div id="inspector-content" class="inspector-content" hidden>
+              <div class="inspector-heading">
+                <span id="inspector-icon" class="inspector-icon" aria-hidden="true"></span>
+                <div>
+                  <strong id="inspector-name"></strong>
+                  <small id="inspector-level"></small>
+                </div>
+              </div>
+              <p id="inspector-description" class="inspector-description"></p>
+              <dl class="inspector-stats">
+                <div>
+                  <dt>Current effect</dt>
+                  <dd id="inspector-output"></dd>
+                </div>
+                <div>
+                  <dt>Status</dt>
+                  <dd id="inspector-requirement"></dd>
+                </div>
+              </dl>
+              <div class="upgrade-box">
+                <span>Upgrade cost</span>
+                <strong id="inspector-cost"></strong>
+                <button id="upgrade-building" class="primary-button" type="button">
+                  Upgrade building
+                </button>
+              </div>
             </div>
           </aside>
         </section>
