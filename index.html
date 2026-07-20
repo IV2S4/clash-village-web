@@ -75,28 +75,122 @@
             </p>
           </div>
 
-          <aside class="guide-panel">
-            <p class="eyebrow">Settlement journal</p>
-            <h2>Your first outpost</h2>
-            <ol class="quest-list">
-              <li>
-                <span>1</span>
-                <div><strong>Gather</strong><small>Build producers for a steady income.</small></div>
-              </li>
-              <li>
-                <span>2</span>
-                <div><strong>Expand</strong><small>Place structures on any open tile.</small></div>
-              </li>
-              <li>
-                <span>3</span>
-                <div><strong>Return</strong><small>Your village keeps working for up to 4 hours.</small></div>
-              </li>
-            </ol>
-            <div class="coming-soon">
-              <span>Next frontier</span>
-              <strong>Upgrades, troop training & raids</strong>
+          <aside class="guide-panel" aria-labelledby="inspector-title">
+            <p class="eyebrow">Builder's ledger</p>
+            <h2 id="inspector-title">Building inspector</h2>
+            <div id="inspector-empty" class="inspector-empty">
+              <span aria-hidden="true">⌁</span>
+              <p>Select an occupied tile to inspect its output and upgrades.</p>
+            </div>
+            <div id="inspector-content" class="inspector-content" hidden>
+              <div class="inspector-heading">
+                <span id="inspector-icon" class="inspector-icon" aria-hidden="true"></span>
+                <div>
+                  <strong id="inspector-name"></strong>
+                  <small id="inspector-level"></small>
+                </div>
+              </div>
+              <p id="inspector-description" class="inspector-description"></p>
+              <dl class="inspector-stats">
+                <div>
+                  <dt>Current effect</dt>
+                  <dd id="inspector-output"></dd>
+                </div>
+                <div>
+                  <dt>Status</dt>
+                  <dd id="inspector-requirement"></dd>
+                </div>
+              </dl>
+              <div class="upgrade-box">
+                <span>Upgrade cost</span>
+                <strong id="inspector-cost"></strong>
+                <button id="upgrade-building" class="primary-button" type="button">
+                  Upgrade building
+                </button>
+              </div>
             </div>
           </aside>
+        </section>
+
+        <section class="army-panel" aria-labelledby="army-title">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Muster grounds</p>
+              <h2 id="army-title">Trailguard company</h2>
+            </div>
+            <span class="army-total"><strong id="army-count">0</strong> ready</span>
+          </div>
+          <div class="army-content">
+            <div class="troop-card">
+              <span class="troop-icon" aria-hidden="true">▲</span>
+              <div>
+                <strong>Trailguard</strong>
+                <p>A steady frontline fighter for future frontier raids.</p>
+                <small>10 Timber · 30 Grain · 8 seconds</small>
+              </div>
+              <button id="train-trailguard" class="primary-button" type="button">
+                Train Trailguard
+              </button>
+            </div>
+            <div class="queue-card">
+              <div class="queue-heading">
+                <strong>Training queue</strong>
+                <span id="queue-capacity">0 / 0 slots</span>
+              </div>
+              <ol id="training-queue" class="training-queue">
+                <li class="queue-empty">Build a Muster Lodge to begin training.</li>
+              </ol>
+            </div>
+          </div>
+        </section>
+
+        <section class="raid-panel" aria-labelledby="raid-title">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Frontier map</p>
+              <h2 id="raid-title">Raid expeditions</h2>
+            </div>
+            <div class="raid-heading-actions">
+              <span id="raid-record">0 victories · 0 defeats</span>
+              <button id="scout-targets" class="text-button" type="button">
+                Scout new targets
+              </button>
+            </div>
+          </div>
+          <p class="raid-intro">
+            Choose a rival frontier camp, then commit ready Trailguards. A
+            stronger company improves the outcome but every expedition risks
+            casualties.
+          </p>
+          <div
+            id="raid-targets"
+            class="raid-targets"
+            aria-label="Available raid targets"
+          ></div>
+          <div class="deployment-card">
+            <label for="raid-troops">
+              Trailguards to deploy
+              <input
+                id="raid-troops"
+                type="number"
+                min="1"
+                max="0"
+                step="1"
+                value="0"
+                inputmode="numeric"
+              />
+            </label>
+            <button id="launch-raid" class="primary-button" type="button">
+              Train Trailguards first
+            </button>
+          </div>
+          <div
+            id="raid-result"
+            class="raid-result"
+            role="status"
+            aria-live="polite"
+            hidden
+          ></div>
         </section>
 
         <section class="build-panel" aria-labelledby="build-title">
