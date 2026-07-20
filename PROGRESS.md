@@ -1,6 +1,6 @@
 # Clash Village MVP Progress
 
-Last updated: 2026-07-19
+Last updated: 2026-07-20
 
 ## Current state
 
@@ -22,7 +22,7 @@ The village economy and progression foundation is complete:
 - Placeable Muster Lodge with level-scaled training queue capacity.
 - Trainable original Trailguard troops with resource costs, sequential timers,
   persistent queue state, offline completion, and a visible ready-army count.
-- Dependency-free local server and automated core-economy tests.
+- Dependency-free local server and 14 automated core game tests.
 
 ## MVP checklist
 
