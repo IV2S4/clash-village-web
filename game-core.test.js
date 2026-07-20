@@ -8,9 +8,11 @@ import {
   getBuildingLevel,
   getCapacity,
   getProductionRates,
+  getTrainingQueueCapacity,
   getUpgradeCost,
   hydrateState,
   placeBuilding,
+  trainTroop,
   upgradeBuilding,
 } from "./game-core.js";
 
@@ -174,4 +176,80 @@ test("upgrades deduct scaling costs and improve storehouse capacity", () => {
   );
   assert.equal(getCapacity(upgraded), BASE_CAPACITY + 300 * 1.75);
   assert.deepEqual(getUpgradeCost("storehouse", 4), null);
+});
+
+test("a Muster Lodge enables a paid timed training queue", () => {
+  const initial = createInitialState(1_000);
+  const withLodge = placeBuilding(initial, "musterLodge", 0, 0, 1_000).state;
+  const result = trainTroop(withLodge, "trailguard", 1_000);
+
+  assert.equal(result.error, undefined);
+  assert.equal(result.state.resources.timber, withLodge.resources.timber - 10);
+  assert.equal(result.state.resources.grain, withLodge.resources.grain - 30);
+  assert.equal(result.state.trainingQueue.length, 1);
+  assert.equal(result.training.finishesAt, 9_000);
+  assert.equal(result.state.army.trailguard, 0);
+});
+
+test("queued troops complete sequentially while the village is away", () => {
+  const richVillage = {
+    ...createInitialState(1_000),
+    resources: { timber: 1_000, stone: 1_000, grain: 1_000 },
+  };
+  let state = placeBuilding(richVillage, "musterLodge", 0, 0, 1_000).state;
+  state = trainTroop(state, "trailguard", 1_000).state;
+  state = trainTroop(state, "trailguard", 1_000).state;
+
+  assert.deepEqual(
+    state.trainingQueue.map((item) => item.finishesAt),
+    [9_000, 17_000],
+  );
+
+  const oneComplete = advanceState(state, 10_000);
+  assert.equal(oneComplete.army.trailguard, 1);
+  assert.equal(oneComplete.trainingQueue.length, 1);
+
+  const allComplete = advanceState(oneComplete, 20_000);
+  assert.equal(allComplete.army.trailguard, 2);
+  assert.equal(allComplete.trainingQueue.length, 0);
+});
+
+test("training requires a lodge, resources, and an open queue slot", () => {
+  const initial = createInitialState(1_000);
+  assert.equal(
+    trainTroop(initial, "trailguard", 1_000).error,
+    "Build a Muster Lodge before training troops.",
+  );
+
+  let state = placeBuilding(initial, "musterLodge", 0, 0, 1_000).state;
+  assert.equal(getTrainingQueueCapacity(state), 3);
+  state = {
+    ...state,
+    resources: { timber: 1_000, stone: 1_000, grain: 1_000 },
+  };
+  for (let index = 0; index < 3; index += 1) {
+    state = trainTroop(state, "trailguard", 1_000).state;
+  }
+  assert.equal(
+    trainTroop(state, "trailguard", 1_000).error,
+    "The training queue is full.",
+  );
+
+  const poorVillage = { ...state, trainingQueue: [], resources: { timber: 0, stone: 0, grain: 0 } };
+  assert.equal(
+    trainTroop(poorVillage, "trailguard", 1_000).error,
+    "You need more resources.",
+  );
+});
+
+test("legacy saves hydrate with an empty army and training queue", () => {
+  const legacy = createInitialState(1_000);
+  delete legacy.army;
+  delete legacy.trainingQueue;
+  delete legacy.nextTrainingId;
+
+  const state = hydrateState(legacy, 1_000);
+  assert.deepEqual(state.army, { trailguard: 0 });
+  assert.deepEqual(state.trainingQueue, []);
+  assert.equal(state.nextTrainingId, 1);
 });

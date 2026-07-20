@@ -3,6 +3,18 @@ export const RESOURCE_KEYS = ["timber", "stone", "grain"];
 export const BASE_CAPACITY = 500;
 export const MAX_OFFLINE_SECONDS = 4 * 60 * 60;
 export const MAX_BUILDING_LEVEL = 4;
+export const TRAINING_QUEUE_BASE_CAPACITY = 3;
+
+export const TROOP_TYPES = Object.freeze({
+  trailguard: {
+    name: "Trailguard",
+    icon: "▲",
+    description: "A steady village defender ready for frontier raids.",
+    cost: { grain: 30, timber: 10 },
+    trainingSeconds: 8,
+    power: 12,
+  },
+});
 
 export const BUILDING_TYPES = Object.freeze({
   hearth: {
@@ -46,6 +58,15 @@ export const BUILDING_TYPES = Object.freeze({
     production: {},
     capacity: 300,
   },
+  musterLodge: {
+    name: "Muster Lodge",
+    icon: "⚑",
+    description: "Trains Trailguards and expands the village training queue.",
+    cost: { timber: 80, stone: 55, grain: 35 },
+    upgradeCost: { timber: 90, stone: 75, grain: 60 },
+    production: {},
+    trainingCapacity: TRAINING_QUEUE_BASE_CAPACITY,
+  },
 });
 
 export function createInitialState(now = Date.now()) {
@@ -65,8 +86,13 @@ export function createInitialState(now = Date.now()) {
         level: 1,
       },
     ],
+    army: {
+      trailguard: 0,
+    },
+    trainingQueue: [],
     lastUpdated: now,
     nextBuildingId: 2,
+    nextTrainingId: 1,
   };
 }
 
@@ -125,28 +151,41 @@ export function getProductionRates(state) {
   return rates;
 }
 
+export function getTrainingQueueCapacity(state) {
+  return state.buildings.reduce((total, building) => {
+    const baseCapacity = BUILDING_TYPES[building.type]?.trainingCapacity ?? 0;
+    if (!baseCapacity) return total;
+    return total + baseCapacity + getBuildingLevel(building) - 1;
+  }, 0);
+}
+
 export function advanceState(state, now = Date.now()) {
   const elapsedSeconds = Math.min(
     Math.max(0, (now - state.lastUpdated) / 1000),
     MAX_OFFLINE_SECONDS,
   );
-
-  if (elapsedSeconds === 0) {
-    return state;
-  }
-
   const rates = getProductionRates(state);
   const capacity = getCapacity(state);
   const resources = { ...state.resources };
 
-  for (const resource of RESOURCE_KEYS) {
-    resources[resource] = Math.min(
-      capacity,
-      resources[resource] + rates[resource] * elapsedSeconds,
-    );
+  if (elapsedSeconds > 0) {
+    for (const resource of RESOURCE_KEYS) {
+      resources[resource] = Math.min(
+        capacity,
+        resources[resource] + rates[resource] * elapsedSeconds,
+      );
+    }
   }
 
-  return { ...state, resources, lastUpdated: now };
+  const completed = state.trainingQueue.filter((item) => item.finishesAt <= now);
+  const trainingQueue = state.trainingQueue.filter((item) => item.finishesAt > now);
+  const army = { ...state.army };
+  for (const item of completed) {
+    army[item.troopType] = (army[item.troopType] ?? 0) + 1;
+  }
+
+  if (elapsedSeconds === 0 && completed.length === 0) return state;
+  return { ...state, resources, army, trainingQueue, lastUpdated: now };
 }
 
 export function canAfford(state, cost) {
@@ -255,6 +294,50 @@ export function upgradeBuilding(state, buildingId, now = Date.now()) {
   };
 }
 
+export function trainTroop(state, troopType, now = Date.now()) {
+  const currentState = advanceState(state, now);
+  const definition = TROOP_TYPES[troopType];
+  if (!definition) {
+    return { state: currentState, error: "That troop cannot be trained." };
+  }
+
+  const queueCapacity = getTrainingQueueCapacity(currentState);
+  if (queueCapacity === 0) {
+    return { state: currentState, error: "Build a Muster Lodge before training troops." };
+  }
+
+  if (currentState.trainingQueue.length >= queueCapacity) {
+    return { state: currentState, error: "The training queue is full." };
+  }
+
+  if (!canAfford(currentState, definition.cost)) {
+    return { state: currentState, error: "You need more resources." };
+  }
+
+  const resources = { ...currentState.resources };
+  for (const [resource, amount] of Object.entries(definition.cost)) {
+    resources[resource] -= amount;
+  }
+
+  const previousFinish = currentState.trainingQueue.at(-1)?.finishesAt ?? now;
+  const training = {
+    id: `training-${currentState.nextTrainingId}`,
+    troopType,
+    finishesAt:
+      Math.max(now, previousFinish) + definition.trainingSeconds * 1000,
+  };
+
+  return {
+    state: {
+      ...currentState,
+      resources,
+      trainingQueue: [...currentState.trainingQueue, training],
+      nextTrainingId: currentState.nextTrainingId + 1,
+    },
+    training,
+  };
+}
+
 export function hydrateState(value, now = Date.now()) {
   if (
     !value ||
@@ -290,16 +373,37 @@ export function hydrateState(value, now = Date.now()) {
         : 0,
     ]),
   );
+  const army = Object.fromEntries(
+    Object.keys(TROOP_TYPES).map((troopType) => [
+      troopType,
+      Number.isInteger(value.army?.[troopType])
+        ? Math.max(0, value.army[troopType])
+        : 0,
+    ]),
+  );
+  const trainingQueue = Array.isArray(value.trainingQueue)
+    ? value.trainingQueue.filter(
+        (item) =>
+          TROOP_TYPES[item?.troopType] &&
+          typeof item.id === "string" &&
+          Number.isFinite(item.finishesAt),
+      )
+    : [];
 
   return advanceState(
     {
       version: 1,
       resources,
       buildings: validBuildings,
+      army,
+      trainingQueue,
       lastUpdated: value.lastUpdated,
       nextBuildingId: Number.isInteger(value.nextBuildingId)
         ? value.nextBuildingId
         : validBuildings.length + 1,
+      nextTrainingId: Number.isInteger(value.nextTrainingId)
+        ? value.nextTrainingId
+        : trainingQueue.length + 1,
     },
     now,
   );

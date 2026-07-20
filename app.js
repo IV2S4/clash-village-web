@@ -3,6 +3,7 @@ import {
   GRID_SIZE,
   MAX_BUILDING_LEVEL,
   RESOURCE_KEYS,
+  TROOP_TYPES,
   advanceState,
   canAfford,
   createInitialState,
@@ -12,9 +13,11 @@ import {
   getHearthLevel,
   getLevelMultiplier,
   getProductionRates,
+  getTrainingQueueCapacity,
   getUpgradeCost,
   hydrateState,
   placeBuilding,
+  trainTroop,
   upgradeBuilding,
 } from "./game-core.js";
 
@@ -43,6 +46,10 @@ const inspectorOutput = document.querySelector("#inspector-output");
 const inspectorRequirement = document.querySelector("#inspector-requirement");
 const inspectorCost = document.querySelector("#inspector-cost");
 const upgradeButton = document.querySelector("#upgrade-building");
+const armyCount = document.querySelector("#army-count");
+const queueCapacity = document.querySelector("#queue-capacity");
+const trainingQueue = document.querySelector("#training-queue");
+const trainTrailguardButton = document.querySelector("#train-trailguard");
 
 function loadGame() {
   try {
@@ -241,6 +248,10 @@ function getOutputText(building) {
     return `+${formatAmount(definition.capacity * multiplier)} capacity per resource`;
   }
 
+  if (definition.trainingCapacity) {
+    return `${definition.trainingCapacity + level - 1} training queue slots`;
+  }
+
   return `Allows village buildings to reach level ${level}`;
 }
 
@@ -285,11 +296,55 @@ function renderInspector() {
   upgradeButton.disabled = isMaxLevel || isHearthGated || !isAffordable;
 }
 
+function renderArmy() {
+  const troop = TROOP_TYPES.trailguard;
+  const capacity = getTrainingQueueCapacity(state);
+  const queueLength = state.trainingQueue.length;
+
+  armyCount.textContent = formatAmount(state.army.trailguard);
+  queueCapacity.textContent = `${queueLength} / ${capacity} slots`;
+  trainingQueue.replaceChildren();
+
+  if (queueLength === 0) {
+    const empty = document.createElement("li");
+    empty.className = "queue-empty";
+    empty.textContent =
+      capacity === 0
+        ? "Build a Muster Lodge to begin training."
+        : "The lodge is ready for new recruits.";
+    trainingQueue.append(empty);
+  } else {
+    for (const [index, item] of state.trainingQueue.entries()) {
+      const row = document.createElement("li");
+      const label = document.createElement("span");
+      const remaining = document.createElement("span");
+      label.textContent = `${index + 1}. ${TROOP_TYPES[item.troopType].name}`;
+      remaining.className = "queue-time";
+      remaining.textContent = `${Math.max(1, Math.ceil((item.finishesAt - Date.now()) / 1000))}s`;
+      row.append(label, remaining);
+      trainingQueue.append(row);
+    }
+  }
+
+  const hasLodge = capacity > 0;
+  const isFull = queueLength >= capacity;
+  const isAffordable = canAfford(state, troop.cost);
+  trainTrailguardButton.disabled = !hasLodge || isFull || !isAffordable;
+  trainTrailguardButton.textContent = !hasLodge
+    ? "Build a Muster Lodge"
+    : isFull
+      ? "Queue full"
+      : !isAffordable
+        ? "Gather supplies"
+        : "Train Trailguard";
+}
+
 function render() {
   renderResources();
   renderGrid();
   renderBuildMenu();
   renderInspector();
+  renderArmy();
 }
 
 upgradeButton.addEventListener("click", () => {
@@ -306,6 +361,20 @@ upgradeButton.addEventListener("click", () => {
       `${definition.name} upgraded to level ${result.building.level}!`,
       "success",
     );
+    saveGame();
+  }
+
+  render();
+});
+
+trainTrailguardButton.addEventListener("click", () => {
+  const result = trainTroop(state, "trailguard");
+  state = result.state;
+
+  if (result.error) {
+    announce(result.error, "error");
+  } else {
+    announce("A Trailguard joined the training queue.", "success");
     saveGame();
   }
 
@@ -346,4 +415,5 @@ setInterval(() => {
   saveGame();
   renderResources();
   renderInspector();
+  renderArmy();
 }, 1000);

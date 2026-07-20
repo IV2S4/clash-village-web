@@ -19,6 +19,9 @@ The village economy and progression foundation is complete:
   locked/affordable/max-level states.
 - Four persistent building levels with scaling production and storage.
 - Village Hearth progression gates upgrades for every other structure.
+- Placeable Muster Lodge with level-scaled training queue capacity.
+- Trainable original Trailguard troops with resource costs, sequential timers,
+  persistent queue state, offline completion, and a visible ready-army count.
 - Dependency-free local server and automated core-economy tests.
 
 ## MVP checklist
@@ -27,7 +30,7 @@ The village economy and progression foundation is complete:
 - [x] Gather resources over time.
 - [x] Place resource and storage buildings.
 - [x] Inspect and upgrade buildings.
-- [ ] Train troops using resources and elapsed time.
+- [x] Train troops using resources and elapsed time.
 - [ ] Choose a raid target and deploy trained troops.
 - [ ] Resolve a battle with victory/defeat, casualties, and loot.
 - [ ] Feed raid rewards back into village progression.
@@ -35,7 +38,7 @@ The village economy and progression foundation is complete:
 
 ## Next priority
 
-Add troop training. Introduce an original training building and at least one
-troop type, with resource costs, a small timed queue, persistent completion, and
-a visible army count. Keep the first version compact so the trained army can
-feed directly into the raid loop in the following slice.
+Add the first raid loop. Present a small choice of generated frontier targets,
+let the player deploy trained Trailguards, and resolve victory or defeat with
+casualties and resource loot. Persist the result so raid rewards feed directly
+back into village progression.

@@ -177,7 +177,8 @@ h2 {
 
 .village-panel,
 .guide-panel,
-.build-panel {
+.build-panel,
+.army-panel {
   border: 1px solid var(--line);
   border-radius: 18px;
   background: var(--panel);
@@ -288,6 +289,10 @@ h2 {
 
 .village-tile.building-hearth {
   background: linear-gradient(145deg, #dc9b4e, #7a3f2e);
+}
+
+.village-tile.building-musterLodge {
+  background: linear-gradient(145deg, #5b7380, #34444b);
 }
 
 .tile-icon {
@@ -459,6 +464,118 @@ h2 {
   cursor: not-allowed;
 }
 
+.army-panel {
+  margin-top: 16px;
+  padding: 18px;
+}
+
+.army-total {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.army-total strong {
+  color: var(--gold);
+  font-size: 1.15rem;
+}
+
+.army-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr);
+  gap: 12px;
+}
+
+.troop-card,
+.queue-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-raised);
+}
+
+.troop-card {
+  display: grid;
+  grid-template-columns: auto 1fr minmax(150px, auto);
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+}
+
+.troop-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 12px;
+  color: #172017;
+  background: var(--gold);
+  font-size: 1.3rem;
+}
+
+.troop-card strong {
+  font-size: 0.88rem;
+}
+
+.troop-card p {
+  margin: 3px 0 6px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.troop-card small {
+  color: #e0c98a;
+  font-size: 0.65rem;
+}
+
+.queue-card {
+  padding: 14px;
+}
+
+.queue-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.75rem;
+}
+
+.queue-heading span {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.training-queue {
+  display: grid;
+  gap: 6px;
+  max-height: 118px;
+  margin: 10px 0 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.training-queue li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 0.69rem;
+}
+
+.training-queue .queue-empty {
+  display: block;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.queue-time {
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+
 .build-panel {
   margin-top: 16px;
   padding: 18px;
@@ -466,7 +583,7 @@ h2 {
 
 .build-menu {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 10px;
 }
 
@@ -542,8 +659,8 @@ footer {
     grid-template-columns: 1fr;
   }
 
-  .build-menu {
-    grid-template-columns: repeat(2, 1fr);
+  .army-content {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -566,6 +683,7 @@ footer {
   }
 
   .village-panel,
+  .army-panel,
   .build-panel {
     padding: 12px;
   }
@@ -576,6 +694,14 @@ footer {
 
   .build-menu {
     grid-template-columns: 1fr;
+  }
+
+  .troop-card {
+    grid-template-columns: auto 1fr;
+  }
+
+  .troop-card .primary-button {
+    grid-column: 1 / -1;
   }
 
   .build-copy small {
