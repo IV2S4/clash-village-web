@@ -4,7 +4,7 @@ Last updated: 2026-07-20
 
 ## Current state
 
-The village economy and progression foundation is complete:
+The playable end-to-end MVP loop is complete:
 
 - Responsive original game interface with an 8×8 village grid.
 - Three resources: timber, stone, and grain.
@@ -22,7 +22,13 @@ The village economy and progression foundation is complete:
 - Placeable Muster Lodge with level-scaled training queue capacity.
 - Trainable original Trailguard troops with resource costs, sequential timers,
   persistent queue state, offline completion, and a visible ready-army count.
-- Dependency-free local server and 14 automated core game tests.
+- Three persistent, generated frontier raid targets with escalating defenses and
+  resource spoils.
+- Trailguard deployment, deterministic victory/defeat resolution, casualties,
+  capped loot rewards, refreshed targets, and a persistent raid record.
+- Raid rewards feed directly back into village building and troop progression.
+- Responsive raid controls and result feedback verified at a 375px viewport.
+- Dependency-free local server and 19 automated core game tests.
 
 ## MVP checklist
 
@@ -31,14 +37,14 @@ The village economy and progression foundation is complete:
 - [x] Place resource and storage buildings.
 - [x] Inspect and upgrade buildings.
 - [x] Train troops using resources and elapsed time.
-- [ ] Choose a raid target and deploy trained troops.
-- [ ] Resolve a battle with victory/defeat, casualties, and loot.
-- [ ] Feed raid rewards back into village progression.
+- [x] Choose a raid target and deploy trained troops.
+- [x] Resolve a battle with victory/defeat, casualties, and loot.
+- [x] Feed raid rewards back into village progression.
 - [ ] Add onboarding and final responsive/accessibility polish.
 
 ## Next priority
 
-Add the first raid loop. Present a small choice of generated frontier targets,
-let the player deploy trained Trailguards, and resolve victory or defeat with
-casualties and resource loot. Persist the result so raid rewards feed directly
-back into village progression.
+The core MVP is playable from village construction through raids. Keep future
+changes to light polish: add a compact first-session onboarding path that points
+players from resource buildings to the Muster Lodge and first raid, then review
+keyboard focus, contrast, and small-screen labels without expanding scope.
