@@ -55,7 +55,7 @@ button {
   transform: translateY(-160%);
 }
 
-.skip-link:focus {
+.skip-link:focus-visible {
   transform: translateY(0);
 }
 
@@ -974,7 +974,18 @@ footer {
   }
 
   .game-header {
+    align-items: flex-start;
+    gap: 12px;
     padding-top: 18px;
+  }
+
+  .header-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .header-actions .text-button {
+    padding: 8px 10px;
   }
 
   .resource-bar {
@@ -1037,6 +1048,18 @@ footer {
 
   .build-copy small {
     min-height: auto;
+  }
+}
+
+@media (max-width: 420px) {
+  .onboarding-heading {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  #dismiss-onboarding {
+    align-self: flex-start;
   }
 }
 

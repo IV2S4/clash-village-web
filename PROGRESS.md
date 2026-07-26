@@ -29,8 +29,10 @@ The playable end-to-end MVP loop is complete:
 - Raid rewards feed directly back into village building and troop progression.
 - Compact, dismissible first-expedition guide tracks progress from the first
   resource structure through a completed raid and can be reopened at any time.
-- Keyboard skip navigation, stronger visible focus states, and responsive
-  onboarding controls complete the first accessibility polish pass.
+- Keyboard skip navigation, visible focus states, guide actions that move focus
+  to the relevant controls, and announced step progress complete the first
+  accessibility polish pass.
+- Header, onboarding, army, and raid controls adapt down to a 320px viewport.
 - Responsive raid controls and result feedback verified at a 375px viewport.
 - Dependency-free local server and 20 automated core game tests.
 
