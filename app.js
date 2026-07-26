@@ -552,8 +552,12 @@ onboardingAction.addEventListener("click", () => {
 
   const target =
     nextStep === "trailguard"
-      ? document.querySelector("#army-title")
-      : document.querySelector("#raid-title");
+      ? trainTrailguardButton.disabled
+        ? document.querySelector("#army-title")
+        : trainTrailguardButton
+      : raidTargets.querySelector(
+          `.raid-target-card[aria-pressed="true"], .raid-target-card`,
+        );
   focusGuideTarget(target);
 });
 
