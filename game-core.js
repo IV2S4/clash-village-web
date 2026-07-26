@@ -91,6 +91,7 @@ export function createInitialState(now = Date.now()) {
   const raidOptions = generateRaidTargets(now);
   return {
     version: 1,
+    onboardingDismissed: false,
     resources: {
       timber: 150,
       stone: 100,
@@ -180,6 +181,26 @@ export function getTrainingQueueCapacity(state) {
     if (!baseCapacity) return total;
     return total + baseCapacity + getBuildingLevel(building) - 1;
   }, 0);
+}
+
+export function getOnboardingProgress(state) {
+  const raidCount =
+    (state.raidStats?.wins ?? 0) + (state.raidStats?.losses ?? 0);
+  const hasTrainedTrailguard =
+    (state.army?.trailguard ?? 0) > 0 ||
+    state.trainingQueue?.some((item) => item.troopType === "trailguard") ||
+    raidCount > 0;
+
+  return {
+    resourceBuilding: state.buildings.some((building) =>
+      ["timberYard", "stoneworks", "field"].includes(building.type),
+    ),
+    musterLodge: state.buildings.some(
+      (building) => building.type === "musterLodge",
+    ),
+    trailguard: hasTrainedTrailguard,
+    firstRaid: raidCount > 0,
+  };
 }
 
 function nextRandom(seed) {
@@ -589,6 +610,7 @@ export function hydrateState(value, now = Date.now()) {
   return advanceState(
     {
       version: 1,
+      onboardingDismissed: Boolean(value.onboardingDismissed),
       resources,
       buildings: validBuildings,
       army,
