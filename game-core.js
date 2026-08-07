@@ -5,6 +5,7 @@ export const MAX_OFFLINE_SECONDS = 4 * 60 * 60;
 export const MAX_BUILDING_LEVEL = 4;
 export const TRAINING_QUEUE_BASE_CAPACITY = 3;
 export const RAID_TARGET_COUNT = 3;
+export const ONBOARDING_STEP_COUNT = 4;
 
 const RAID_NAME_PREFIXES = [
   "Briar",
@@ -180,6 +181,30 @@ export function getTrainingQueueCapacity(state) {
     if (!baseCapacity) return total;
     return total + baseCapacity + getBuildingLevel(building) - 1;
   }, 0);
+}
+
+export function getOnboardingProgress(state) {
+  const raidAttempts =
+    (state.raidStats?.wins ?? 0) + (state.raidStats?.losses ?? 0);
+  const milestones = [
+    state.buildings.some((building) =>
+      ["timberYard", "stoneworks", "field"].includes(building.type),
+    ),
+    state.buildings.some((building) => building.type === "musterLodge"),
+    raidAttempts > 0 ||
+      (state.army?.trailguard ?? 0) > 0 ||
+      (state.trainingQueue?.length ?? 0) > 0,
+    raidAttempts > 0,
+  ];
+  const nextStepIndex = milestones.findIndex((complete) => !complete);
+
+  return {
+    completedSteps: milestones.filter(Boolean).length,
+    currentStepIndex:
+      nextStepIndex === -1 ? ONBOARDING_STEP_COUNT : nextStepIndex,
+    isComplete: nextStepIndex === -1,
+    milestones,
+  };
 }
 
 function nextRandom(seed) {
