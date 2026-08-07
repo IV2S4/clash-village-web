@@ -8,6 +8,7 @@ import {
   generateRaidTargets,
   getBuildingLevel,
   getCapacity,
+  getOnboardingProgress,
   getProductionRates,
   getTrainingQueueCapacity,
   getUpgradeCost,
@@ -25,6 +26,31 @@ test("a new village starts with a hearth and starter resources", () => {
   assert.equal(state.buildings.length, 1);
   assert.equal(state.buildings[0].type, "hearth");
   assert.deepEqual(state.resources, { timber: 150, stone: 100, grain: 80 });
+});
+
+test("onboarding follows the path from production to a first raid", () => {
+  const initial = createInitialState(1_000);
+  assert.deepEqual(getOnboardingProgress(initial), {
+    completedSteps: 0,
+    currentStepIndex: 0,
+    isComplete: false,
+    milestones: [false, false, false, false],
+  });
+
+  let state = placeBuilding(initial, "timberYard", 0, 0, 1_000).state;
+  assert.equal(getOnboardingProgress(state).currentStepIndex, 1);
+
+  state = placeBuilding(state, "musterLodge", 1, 0, 1_000).state;
+  assert.equal(getOnboardingProgress(state).currentStepIndex, 2);
+
+  state = trainTroop(state, "trailguard", 1_000).state;
+  assert.equal(getOnboardingProgress(state).currentStepIndex, 3);
+
+  state = advanceState(state, 9_000);
+  state = resolveRaid(state, state.raidTargets[0].id, 1, 9_000).state;
+  const completed = getOnboardingProgress(state);
+  assert.equal(completed.isComplete, true);
+  assert.equal(completed.completedSteps, 4);
 });
 
 test("placing a producer deducts its cost and starts production", () => {
