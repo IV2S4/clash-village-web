@@ -12,6 +12,7 @@ import {
   getCapacity,
   getHearthLevel,
   getLevelMultiplier,
+  getOnboardingProgress,
   getProductionRates,
   getTrainingQueueCapacity,
   getUpgradeCost,
@@ -24,16 +25,48 @@ import {
 } from "./game-core.js";
 
 const SAVE_KEY = "clash-village-save-v1";
+const GUIDE_KEY = "clash-village-guide-dismissed-v1";
 const RESOURCE_LABELS = {
   timber: "Timber",
   stone: "Stone",
   grain: "Grain",
+};
+const ONBOARDING_STEPS = [
+  {
+    description:
+      "Start with a Timber Yard, Stoneworks, or Sunfield so your supplies replenish.",
+    action: "Go to resource buildings",
+    target: '[data-building-type="timberYard"]',
+  },
+  {
+    description:
+      "Build a Muster Lodge to unlock your Trailguard training queue.",
+    action: "Go to the Muster Lodge",
+    target: '[data-building-type="musterLodge"]',
+  },
+  {
+    description:
+      "Queue a Trailguard. Training continues while you build and while you are away.",
+    action: "Go to Trailguard training",
+    target: "#army-title",
+  },
+  {
+    description:
+      "Choose a frontier target and deploy your ready Trailguards on their first raid.",
+    action: "Go to raid expeditions",
+    target: "#raid-title",
+  },
+];
+const ONBOARDING_COMPLETE = {
+  description:
+    "Your first expedition is complete. Keep building, training, and scouting stronger targets.",
 };
 
 let state = loadGame();
 let selectedBuildingType = null;
 let selectedBuildingId = null;
 let selectedRaidTargetId = state.raidTargets[0]?.id ?? null;
+let isGuideOpen = !readGuideDismissed();
 
 const grid = document.querySelector("#village-grid");
 const buildMenu = document.querySelector("#build-menu");
@@ -59,6 +92,33 @@ const launchRaidButton = document.querySelector("#launch-raid");
 const scoutTargetsButton = document.querySelector("#scout-targets");
 const raidRecord = document.querySelector("#raid-record");
 const raidResult = document.querySelector("#raid-result");
+const onboardingGuide = document.querySelector("#onboarding-guide");
+const onboardingDescription = document.querySelector("#onboarding-description");
+const onboardingSteps = document.querySelector("#onboarding-steps");
+const onboardingProgress = document.querySelector("#onboarding-progress");
+const onboardingAction = document.querySelector("#onboarding-action");
+const dismissGuideButton = document.querySelector("#dismiss-guide");
+const openGuideButton = document.querySelector("#open-guide");
+
+function readGuideDismissed() {
+  try {
+    return localStorage.getItem(GUIDE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function setGuideDismissed(isDismissed) {
+  try {
+    if (isDismissed) {
+      localStorage.setItem(GUIDE_KEY, "true");
+    } else {
+      localStorage.removeItem(GUIDE_KEY);
+    }
+  } catch {
+    // The guide remains usable when storage is blocked.
+  }
+}
 
 function loadGame() {
   try {
@@ -440,6 +500,41 @@ function renderRaids() {
   renderRaidResult();
 }
 
+function renderOnboarding() {
+  const progress = getOnboardingProgress(state);
+  const currentStep = ONBOARDING_STEPS[progress] ?? ONBOARDING_COMPLETE;
+
+  onboardingGuide.hidden = !isGuideOpen;
+  openGuideButton.hidden = isGuideOpen;
+  openGuideButton.setAttribute("aria-expanded", String(isGuideOpen));
+  onboardingDescription.textContent = currentStep.description;
+  onboardingProgress.textContent =
+    progress < ONBOARDING_STEPS.length
+      ? `Step ${progress + 1} of ${ONBOARDING_STEPS.length}`
+      : "First expedition complete";
+  onboardingAction.hidden = progress >= ONBOARDING_STEPS.length;
+  dismissGuideButton.textContent =
+    progress >= ONBOARDING_STEPS.length ? "Close guide" : "Hide guide";
+
+  if (progress < ONBOARDING_STEPS.length) {
+    onboardingAction.textContent = currentStep.action;
+    onboardingAction.dataset.target = currentStep.target;
+  } else {
+    delete onboardingAction.dataset.target;
+  }
+
+  for (const [index, step] of [...onboardingSteps.children].entries()) {
+    const isComplete = index < progress;
+    const isCurrent = index === progress;
+    step.className = isComplete ? "complete" : isCurrent ? "current" : "";
+    if (isCurrent) {
+      step.setAttribute("aria-current", "step");
+    } else {
+      step.removeAttribute("aria-current");
+    }
+  }
+}
+
 function render() {
   renderResources();
   renderGrid();
@@ -447,7 +542,39 @@ function render() {
   renderInspector();
   renderArmy();
   renderRaids();
+  renderOnboarding();
 }
+
+onboardingAction.addEventListener("click", () => {
+  const target = document.querySelector(onboardingAction.dataset.target);
+  if (!target) return;
+
+  const reduceMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)",
+  ).matches;
+  target.scrollIntoView({
+    behavior: reduceMotion ? "auto" : "smooth",
+    block: "center",
+  });
+  target.focus({ preventScroll: true });
+});
+
+dismissGuideButton.addEventListener("click", () => {
+  isGuideOpen = false;
+  setGuideDismissed(true);
+  renderOnboarding();
+  openGuideButton.focus();
+});
+
+openGuideButton.addEventListener("click", () => {
+  isGuideOpen = true;
+  setGuideDismissed(false);
+  renderOnboarding();
+  onboardingGuide.scrollIntoView({ block: "start" });
+  (onboardingAction.hidden ? dismissGuideButton : onboardingAction).focus({
+    preventScroll: true,
+  });
+});
 
 upgradeButton.addEventListener("click", () => {
   if (!selectedBuildingId) return;
@@ -525,6 +652,8 @@ document.querySelector("#reset-game").addEventListener("click", () => {
   selectedBuildingType = null;
   selectedBuildingId = null;
   selectedRaidTargetId = state.raidTargets[0].id;
+  isGuideOpen = true;
+  setGuideDismissed(false);
   saveGame();
   render();
   announce("A fresh village is ready.", "success");

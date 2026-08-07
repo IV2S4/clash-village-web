@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <a class="skip-link" href="#main-content">Skip to village controls</a>
     <div class="page-shell">
       <header class="game-header">
         <div class="brand">
@@ -21,10 +22,22 @@
             <h1>Clash Village</h1>
           </div>
         </div>
-        <button id="reset-game" class="text-button" type="button">New village</button>
+        <div class="header-actions">
+          <button
+            id="open-guide"
+            class="text-button"
+            type="button"
+            aria-controls="onboarding-guide"
+            aria-expanded="false"
+            aria-label="Open first expedition guide"
+          >
+            <span class="wide-label">First expedition </span>Guide
+          </button>
+          <button id="reset-game" class="text-button" type="button">New village</button>
+        </div>
       </header>
 
-      <main>
+      <main id="main-content" tabindex="-1">
         <section class="resource-bar" aria-label="Village resources">
           <article class="resource resource-timber" data-resource="timber">
             <span class="resource-symbol" aria-hidden="true">♣</span>
@@ -50,6 +63,36 @@
             </span>
             <small class="resource-rate">+0.0/s</small>
           </article>
+        </section>
+
+        <section
+          id="onboarding-guide"
+          class="onboarding-guide"
+          aria-labelledby="onboarding-title"
+          hidden
+        >
+          <div class="onboarding-copy">
+            <p class="eyebrow">First expedition</p>
+            <h2 id="onboarding-title">Your frontier path</h2>
+            <p id="onboarding-description">
+              Start with a resource building so your village can keep growing.
+            </p>
+          </div>
+          <ol id="onboarding-steps" class="onboarding-steps">
+            <li>Gather</li>
+            <li>Muster</li>
+            <li>Train</li>
+            <li>Raid</li>
+          </ol>
+          <div class="onboarding-actions">
+            <span id="onboarding-progress" aria-live="polite">Step 1 of 4</span>
+            <button id="onboarding-action" class="primary-button" type="button">
+              Go to resource buildings
+            </button>
+            <button id="dismiss-guide" class="text-button" type="button">
+              Hide guide
+            </button>
+          </div>
         </section>
 
         <section class="play-area">
@@ -116,7 +159,7 @@
           <div class="panel-heading">
             <div>
               <p class="eyebrow">Muster grounds</p>
-              <h2 id="army-title">Trailguard company</h2>
+              <h2 id="army-title" tabindex="-1">Trailguard company</h2>
             </div>
             <span class="army-total"><strong id="army-count">0</strong> ready</span>
           </div>
@@ -148,7 +191,7 @@
           <div class="panel-heading">
             <div>
               <p class="eyebrow">Frontier map</p>
-              <h2 id="raid-title">Raid expeditions</h2>
+              <h2 id="raid-title" tabindex="-1">Raid expeditions</h2>
             </div>
             <div class="raid-heading-actions">
               <span id="raid-record">0 victories · 0 defeats</span>
@@ -197,7 +240,7 @@
           <div class="panel-heading">
             <div>
               <p class="eyebrow">Builder's yard</p>
-              <h2 id="build-title">Construct</h2>
+              <h2 id="build-title" tabindex="-1">Construct</h2>
             </div>
             <span id="selection-text">Select a structure to build</span>
           </div>

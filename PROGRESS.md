@@ -1,6 +1,6 @@
 # Clash Village MVP Progress
 
-Last updated: 2026-07-20
+Last updated: 2026-08-07
 
 ## Current state
 
@@ -28,7 +28,11 @@ The playable end-to-end MVP loop is complete:
   capped loot rewards, refreshed targets, and a persistent raid record.
 - Raid rewards feed directly back into village building and troop progression.
 - Responsive raid controls and result feedback verified at a 375px viewport.
-- Dependency-free local server and 19 automated core game tests.
+- Reopenable first-expedition guide that tracks progress from the first resource
+  building through the Muster Lodge, Trailguard training, and first raid.
+- Persistent guide dismissal, a keyboard skip link, consistent focus treatment,
+  improved text contrast, and compact small-screen controls.
+- Dependency-free local server and 20 automated core game tests.
 
 ## MVP checklist
 
@@ -40,11 +44,11 @@ The playable end-to-end MVP loop is complete:
 - [x] Choose a raid target and deploy trained troops.
 - [x] Resolve a battle with victory/defeat, casualties, and loot.
 - [x] Feed raid rewards back into village progression.
-- [ ] Add onboarding and final responsive/accessibility polish.
+- [x] Add onboarding and final responsive/accessibility polish.
 
 ## Next priority
 
-The core MVP is playable from village construction through raids. Keep future
-changes to light polish: add a compact first-session onboarding path that points
-players from resource buildings to the Muster Lodge and first raid, then review
-keyboard focus, contrast, and small-screen labels without expanding scope.
+The MVP checklist is complete and the full first-session path is playable from
+village construction through raids. Keep future changes to release hardening:
+regression-check the complete keyboard journey and 320–375px layouts, then fix
+only concrete usability or accessibility defects without expanding game scope.

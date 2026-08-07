@@ -182,6 +182,28 @@ export function getTrainingQueueCapacity(state) {
   }, 0);
 }
 
+export function getOnboardingProgress(state) {
+  if ((state.raidStats?.wins ?? 0) + (state.raidStats?.losses ?? 0) > 0) {
+    return 4;
+  }
+
+  if (
+    (state.army?.trailguard ?? 0) > 0 ||
+    (state.trainingQueue?.length ?? 0) > 0
+  ) {
+    return 3;
+  }
+
+  if (state.buildings.some((building) => building.type === "musterLodge")) {
+    return 2;
+  }
+
+  const producerTypes = new Set(["timberYard", "stoneworks", "field"]);
+  return state.buildings.some((building) => producerTypes.has(building.type))
+    ? 1
+    : 0;
+}
+
 function nextRandom(seed) {
   return (Math.imul(seed, 1_664_525) + 1_013_904_223) >>> 0;
 }
