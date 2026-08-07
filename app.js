@@ -12,6 +12,7 @@ import {
   getCapacity,
   getHearthLevel,
   getLevelMultiplier,
+  getOnboardingProgress,
   getProductionRates,
   getTrainingQueueCapacity,
   getUpgradeCost,
@@ -59,6 +60,16 @@ const launchRaidButton = document.querySelector("#launch-raid");
 const scoutTargetsButton = document.querySelector("#scout-targets");
 const raidRecord = document.querySelector("#raid-record");
 const raidResult = document.querySelector("#raid-result");
+const onboarding = document.querySelector("#onboarding");
+const onboardingTitle = document.querySelector("#onboarding-title");
+const onboardingIntro = document.querySelector("#onboarding-intro");
+const onboardingProgress = document.querySelector("#onboarding-progress");
+const onboardingProgressText = document.querySelector(
+  "#onboarding-progress-text",
+);
+const onboardingAction = document.querySelector("#onboarding-action");
+const dismissOnboardingButton = document.querySelector("#dismiss-onboarding");
+const showOnboardingButton = document.querySelector("#show-onboarding");
 
 function loadGame() {
   try {
@@ -236,6 +247,54 @@ function renderBuildMenu() {
   selectionText.textContent = selectedBuildingType
     ? `Placing: ${BUILDING_TYPES[selectedBuildingType].name}`
     : "Select a structure to build";
+}
+
+function renderOnboarding() {
+  onboarding.hidden = state.onboardingDismissed;
+  showOnboardingButton.hidden = !state.onboardingDismissed;
+  if (state.onboardingDismissed) return;
+
+  const progress = getOnboardingProgress(state);
+  const steps = [...onboarding.querySelectorAll("[data-onboarding-step]")];
+  const completeCount = Object.values(progress).filter(Boolean).length;
+  const nextStep = steps.find(
+    (step) => !progress[step.dataset.onboardingStep],
+  );
+
+  for (const [index, step] of steps.entries()) {
+    const isComplete = progress[step.dataset.onboardingStep];
+    const marker = step.querySelector(".step-marker");
+    step.classList.toggle("complete", isComplete);
+    marker.textContent = isComplete ? "✓" : String(index + 1);
+    step.removeAttribute("aria-current");
+  }
+
+  if (nextStep) nextStep.setAttribute("aria-current", "step");
+  onboardingProgress.value = completeCount;
+  onboardingProgress.textContent = `${completeCount} of 4`;
+  onboardingProgressText.textContent = `${completeCount} of 4 steps complete`;
+  onboardingAction.dataset.nextStep =
+    nextStep?.dataset.onboardingStep ?? "complete";
+
+  if (!nextStep) {
+    onboardingTitle.textContent = "The frontier is open";
+    onboardingIntro.textContent =
+      "Your village can gather, train, and raid. Keep growing at your own pace.";
+    onboardingAction.textContent = "Finish guide";
+    dismissOnboardingButton.textContent = "Close";
+    return;
+  }
+
+  onboardingTitle.textContent = "Prepare your village";
+  onboardingIntro.textContent =
+    "Follow the trail from gathering supplies to your first raid.";
+  dismissOnboardingButton.textContent = "Not now";
+  onboardingAction.textContent = {
+    resourceBuilding: "Start with a Timber Yard",
+    musterLodge: "Choose the Muster Lodge",
+    trailguard: "Go to troop training",
+    firstRaid: "Go to frontier targets",
+  }[nextStep.dataset.onboardingStep];
 }
 
 function getOutputText(building) {
@@ -444,10 +503,72 @@ function render() {
   renderResources();
   renderGrid();
   renderBuildMenu();
+  renderOnboarding();
   renderInspector();
   renderArmy();
   renderRaids();
 }
+
+function focusGuideTarget(target) {
+  const prefersReducedMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)",
+  ).matches;
+  target.scrollIntoView({
+    behavior: prefersReducedMotion ? "auto" : "smooth",
+    block: "center",
+  });
+  target.focus({ preventScroll: true });
+}
+
+function dismissOnboarding() {
+  state = { ...state, onboardingDismissed: true };
+  saveGame();
+  renderOnboarding();
+  showOnboardingButton.focus();
+}
+
+onboardingAction.addEventListener("click", () => {
+  const nextStep = onboardingAction.dataset.nextStep;
+
+  if (nextStep === "complete") {
+    dismissOnboarding();
+    return;
+  }
+
+  if (nextStep === "resourceBuilding" || nextStep === "musterLodge") {
+    const buildingType =
+      nextStep === "resourceBuilding" ? "timberYard" : "musterLodge";
+    selectedBuildingType = buildingType;
+    selectedBuildingId = null;
+    render();
+    focusGuideTarget(
+      buildMenu.querySelector(`[data-building-type="${buildingType}"]`),
+    );
+    announce(
+      `${BUILDING_TYPES[buildingType].name} selected. Choose an empty village tile.`,
+    );
+    return;
+  }
+
+  const target =
+    nextStep === "trailguard"
+      ? trainTrailguardButton.disabled
+        ? document.querySelector("#army-title")
+        : trainTrailguardButton
+      : raidTargets.querySelector(
+          `.raid-target-card[aria-pressed="true"], .raid-target-card`,
+        );
+  focusGuideTarget(target);
+});
+
+dismissOnboardingButton.addEventListener("click", dismissOnboarding);
+
+showOnboardingButton.addEventListener("click", () => {
+  state = { ...state, onboardingDismissed: false };
+  saveGame();
+  renderOnboarding();
+  focusGuideTarget(onboardingTitle);
+});
 
 upgradeButton.addEventListener("click", () => {
   if (!selectedBuildingId) return;
@@ -549,6 +670,7 @@ setInterval(() => {
   state = advanceState(state);
   saveGame();
   renderResources();
+  renderOnboarding();
   renderInspector();
   renderArmy();
 }, 1000);
