@@ -1,6 +1,6 @@
 # Clash Village MVP Progress
 
-Last updated: 2026-07-20
+Last updated: 2026-08-07
 
 ## Current state
 
@@ -27,8 +27,14 @@ The playable end-to-end MVP loop is complete:
 - Trailguard deployment, deterministic victory/defeat resolution, casualties,
   capped loot rewards, refreshed targets, and a persistent raid record.
 - Raid rewards feed directly back into village building and troop progression.
+- Compact, dismissible first-expedition guide tracks progress from the first
+  resource structure through a completed raid and can be reopened at any time.
+- Keyboard skip navigation, visible focus states, guide actions that move focus
+  to the relevant controls, and announced step progress complete the first
+  accessibility polish pass.
+- Header, onboarding, army, and raid controls adapt down to a 320px viewport.
 - Responsive raid controls and result feedback verified at a 375px viewport.
-- Dependency-free local server and 19 automated core game tests.
+- Dependency-free local server and 20 automated core game tests.
 
 ## MVP checklist
 
@@ -40,11 +46,12 @@ The playable end-to-end MVP loop is complete:
 - [x] Choose a raid target and deploy trained troops.
 - [x] Resolve a battle with victory/defeat, casualties, and loot.
 - [x] Feed raid rewards back into village progression.
-- [ ] Add onboarding and final responsive/accessibility polish.
+- [x] Add onboarding and final responsive/accessibility polish.
 
 ## Next priority
 
-The core MVP is playable from village construction through raids. Keep future
-changes to light polish: add a compact first-session onboarding path that points
-players from resource buildings to the Muster Lodge and first raid, then review
-keyboard focus, contrast, and small-screen labels without expanding scope.
+The core MVP and first-session guidance are complete. Keep future changes to
+light post-MVP polish: validate balancing through repeated play sessions, refine
+short labels where needed on narrow screens, and address any accessibility
+issues found through keyboard and screen-reader testing without expanding the
+game's feature scope.
