@@ -12,6 +12,7 @@ import {
   getCapacity,
   getHearthLevel,
   getLevelMultiplier,
+  getOnboardingProgress,
   getProductionRates,
   getTrainingQueueCapacity,
   getUpgradeCost,
@@ -24,6 +25,7 @@ import {
 } from "./game-core.js";
 
 const SAVE_KEY = "clash-village-save-v1";
+const GUIDE_DISMISSED_KEY = "clash-village-guide-dismissed-v1";
 const RESOURCE_LABELS = {
   timber: "Timber",
   stone: "Stone",
@@ -34,6 +36,7 @@ let state = loadGame();
 let selectedBuildingType = null;
 let selectedBuildingId = null;
 let selectedRaidTargetId = state.raidTargets[0]?.id ?? null;
+let guideDismissed = localStorage.getItem(GUIDE_DISMISSED_KEY) === "true";
 
 const grid = document.querySelector("#village-grid");
 const buildMenu = document.querySelector("#build-menu");
@@ -59,6 +62,36 @@ const launchRaidButton = document.querySelector("#launch-raid");
 const scoutTargetsButton = document.querySelector("#scout-targets");
 const raidRecord = document.querySelector("#raid-record");
 const raidResult = document.querySelector("#raid-result");
+const onboardingPanel = document.querySelector("#onboarding-panel");
+const onboardingCopy = document.querySelector("#onboarding-copy");
+const onboardingProgress = document.querySelector("#onboarding-progress");
+const onboardingSteps = document.querySelector("#onboarding-steps");
+const guideAction = document.querySelector("#guide-action");
+const showGuideButton = document.querySelector("#show-guide");
+const dismissGuideButton = document.querySelector("#dismiss-guide");
+
+const GUIDE_STEPS = [
+  {
+    copy: "Build a Timber Yard, Stoneworks, or Sunfield to start a steady supply line.",
+    action: "Choose a resource building",
+    target: '#build-menu [data-building-type="timberYard"]',
+  },
+  {
+    copy: "Place a Muster Lodge so Greenvale can recruit Trailguards for the frontier.",
+    action: "Choose the Muster Lodge",
+    target: '#build-menu [data-building-type="musterLodge"]',
+  },
+  {
+    copy: "Spend timber and grain to train your first Trailguard. Training takes a few seconds.",
+    action: "Open the muster grounds",
+    target: "#train-trailguard",
+  },
+  {
+    copy: "Choose a frontier camp, deploy ready Trailguards, and complete your first raid.",
+    action: "Open the frontier map",
+    target: "#raid-panel",
+  },
+];
 
 function loadGame() {
   try {
@@ -87,6 +120,85 @@ function formatCost(cost) {
 function announce(text, tone = "info") {
   message.textContent = text;
   message.dataset.tone = tone;
+}
+
+function focusGuideTarget(selector) {
+  const target = document.querySelector(selector);
+  if (!target) return;
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  target.focus({ preventScroll: true });
+}
+
+function renderOnboarding() {
+  const progress = getOnboardingProgress(state);
+  const activeStep = GUIDE_STEPS[progress.currentStepIndex];
+
+  onboardingPanel.hidden = guideDismissed;
+  showGuideButton.setAttribute("aria-expanded", String(!guideDismissed));
+
+  for (const [index, item] of [...onboardingSteps.children].entries()) {
+    const isComplete = progress.milestones[index];
+    const isCurrent = index === progress.currentStepIndex;
+    const title = item.querySelector("strong").textContent;
+    item.classList.toggle("complete", isComplete);
+    item.classList.toggle("current", isCurrent);
+    item.querySelector(".step-marker").textContent = isComplete ? "✓" : index + 1;
+    item.setAttribute(
+      "aria-label",
+      `${title}: ${isComplete ? "complete" : isCurrent ? "current step" : "upcoming"}`,
+    );
+    if (isCurrent) {
+      item.setAttribute("aria-current", "step");
+    } else {
+      item.removeAttribute("aria-current");
+    }
+  }
+
+  if (progress.isComplete) {
+    onboardingCopy.textContent =
+      "First expedition complete. Raid rewards can now fuel your next village upgrade.";
+    onboardingProgress.textContent = "4 of 4 complete";
+    guideAction.textContent = "Finish guide";
+    return;
+  }
+
+  onboardingCopy.textContent =
+    progress.currentStepIndex === 3 &&
+    state.army.trailguard === 0 &&
+    state.trainingQueue.length > 0
+      ? "Your first Trailguard is training. Check the queue, then head to the frontier map."
+      : activeStep.copy;
+  onboardingProgress.textContent =
+    `Step ${progress.currentStepIndex + 1} of 4`;
+  guideAction.textContent =
+    progress.currentStepIndex === 3 &&
+    state.army.trailguard === 0 &&
+    state.trainingQueue.length > 0
+      ? "View training queue"
+      : activeStep.action;
+}
+
+function navigateFromGuide() {
+  const progress = getOnboardingProgress(state);
+  if (progress.isComplete) {
+    dismissGuide();
+    return;
+  }
+
+  const target =
+    progress.currentStepIndex === 3 &&
+    state.army.trailguard === 0 &&
+    state.trainingQueue.length > 0
+      ? "#army-panel"
+      : GUIDE_STEPS[progress.currentStepIndex].target;
+  focusGuideTarget(target);
+}
+
+function dismissGuide() {
+  guideDismissed = true;
+  localStorage.setItem(GUIDE_DISMISSED_KEY, "true");
+  renderOnboarding();
+  showGuideButton.focus();
 }
 
 function renderResources() {
@@ -442,12 +554,25 @@ function renderRaids() {
 
 function render() {
   renderResources();
+  renderOnboarding();
   renderGrid();
   renderBuildMenu();
   renderInspector();
   renderArmy();
   renderRaids();
 }
+
+guideAction.addEventListener("click", navigateFromGuide);
+
+dismissGuideButton.addEventListener("click", dismissGuide);
+
+showGuideButton.addEventListener("click", () => {
+  guideDismissed = false;
+  localStorage.removeItem(GUIDE_DISMISSED_KEY);
+  renderOnboarding();
+  onboardingPanel.scrollIntoView({ behavior: "smooth", block: "center" });
+  onboardingPanel.focus({ preventScroll: true });
+});
 
 upgradeButton.addEventListener("click", () => {
   if (!selectedBuildingId) return;
@@ -525,6 +650,8 @@ document.querySelector("#reset-game").addEventListener("click", () => {
   selectedBuildingType = null;
   selectedBuildingId = null;
   selectedRaidTargetId = state.raidTargets[0].id;
+  guideDismissed = false;
+  localStorage.removeItem(GUIDE_DISMISSED_KEY);
   saveGame();
   render();
   announce("A fresh village is ready.", "success");
