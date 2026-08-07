@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <a class="skip-link" href="#game-main">Skip to village controls</a>
     <div class="page-shell">
       <header class="game-header">
         <div class="brand">
@@ -21,10 +22,20 @@
             <h1>Clash Village</h1>
           </div>
         </div>
-        <button id="reset-game" class="text-button" type="button">New village</button>
+        <div class="header-actions">
+          <button
+            id="show-guide"
+            class="text-button"
+            type="button"
+            aria-controls="onboarding-panel"
+          >
+            Expedition guide
+          </button>
+          <button id="reset-game" class="text-button" type="button">New village</button>
+        </div>
       </header>
 
-      <main>
+      <main id="game-main" tabindex="-1">
         <section class="resource-bar" aria-label="Village resources">
           <article class="resource resource-timber" data-resource="timber">
             <span class="resource-symbol" aria-hidden="true">♣</span>
@@ -50,6 +61,51 @@
             </span>
             <small class="resource-rate">+0.0/s</small>
           </article>
+        </section>
+
+        <section
+          id="onboarding-panel"
+          class="onboarding-panel"
+          aria-labelledby="onboarding-title"
+          tabindex="-1"
+        >
+          <div class="onboarding-heading">
+            <div>
+              <p class="eyebrow">First expedition</p>
+              <h2 id="onboarding-title">Grow, muster, raid</h2>
+            </div>
+            <button
+              id="dismiss-guide"
+              class="icon-button"
+              type="button"
+              aria-label="Dismiss expedition guide"
+            >
+              ×
+            </button>
+          </div>
+          <p id="onboarding-copy" class="onboarding-copy"></p>
+          <ol id="onboarding-steps" class="onboarding-steps">
+            <li data-guide-step="0">
+              <span class="step-marker" aria-hidden="true">1</span>
+              <span><strong>Gather</strong><small>Build a resource structure</small></span>
+            </li>
+            <li data-guide-step="1">
+              <span class="step-marker" aria-hidden="true">2</span>
+              <span><strong>Muster</strong><small>Place a Muster Lodge</small></span>
+            </li>
+            <li data-guide-step="2">
+              <span class="step-marker" aria-hidden="true">3</span>
+              <span><strong>Train</strong><small>Ready a Trailguard</small></span>
+            </li>
+            <li data-guide-step="3">
+              <span class="step-marker" aria-hidden="true">4</span>
+              <span><strong>Raid</strong><small>Complete an expedition</small></span>
+            </li>
+          </ol>
+          <div class="onboarding-actions">
+            <span id="onboarding-progress" role="status"></span>
+            <button id="guide-action" class="primary-button" type="button"></button>
+          </div>
         </section>
 
         <section class="play-area">
@@ -112,7 +168,7 @@
           </aside>
         </section>
 
-        <section class="army-panel" aria-labelledby="army-title">
+        <section id="army-panel" class="army-panel" aria-labelledby="army-title" tabindex="-1">
           <div class="panel-heading">
             <div>
               <p class="eyebrow">Muster grounds</p>
@@ -144,7 +200,7 @@
           </div>
         </section>
 
-        <section class="raid-panel" aria-labelledby="raid-title">
+        <section id="raid-panel" class="raid-panel" aria-labelledby="raid-title" tabindex="-1">
           <div class="panel-heading">
             <div>
               <p class="eyebrow">Frontier map</p>
@@ -193,7 +249,7 @@
           ></div>
         </section>
 
-        <section class="build-panel" aria-labelledby="build-title">
+        <section id="build-panel" class="build-panel" aria-labelledby="build-title" tabindex="-1">
           <div class="panel-heading">
             <div>
               <p class="eyebrow">Builder's yard</p>
