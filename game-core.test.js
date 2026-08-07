@@ -8,6 +8,7 @@ import {
   generateRaidTargets,
   getBuildingLevel,
   getCapacity,
+  getOnboardingProgress,
   getProductionRates,
   getTrainingQueueCapacity,
   getUpgradeCost,
@@ -192,6 +193,32 @@ test("a Muster Lodge enables a paid timed training queue", () => {
   assert.equal(result.state.trainingQueue.length, 1);
   assert.equal(result.training.finishesAt, 9_000);
   assert.equal(result.state.army.trailguard, 0);
+});
+
+test("onboarding progress follows the path to a first expedition", () => {
+  const initial = createInitialState(1_000);
+  assert.equal(getOnboardingProgress(initial), 0);
+
+  const producing = placeBuilding(initial, "timberYard", 0, 0, 1_000).state;
+  assert.equal(getOnboardingProgress(producing), 1);
+
+  const withLodge = placeBuilding(
+    producing,
+    "musterLodge",
+    1,
+    0,
+    1_000,
+  ).state;
+  assert.equal(getOnboardingProgress(withLodge), 2);
+
+  const training = trainTroop(withLodge, "trailguard", 1_000).state;
+  assert.equal(getOnboardingProgress(training), 3);
+
+  const expedition = {
+    ...training,
+    raidStats: { wins: 1, losses: 0 },
+  };
+  assert.equal(getOnboardingProgress(expedition), 4);
 });
 
 test("queued troops complete sequentially while the village is away", () => {
