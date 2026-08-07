@@ -1,6 +1,6 @@
 # Clash Village MVP Progress
 
-Last updated: 2026-07-26
+Last updated: 2026-08-07
 
 ## Current state
 
@@ -31,7 +31,8 @@ The playable end-to-end MVP loop is complete:
   resource structure through a completed raid and can be reopened at any time.
 - Keyboard skip navigation, stronger visible focus states, and responsive
   onboarding controls complete the first accessibility polish pass.
-- Responsive raid controls and result feedback verified at a 375px viewport.
+- Full onboarding and raid flow, dismissal persistence, keyboard navigation,
+  and responsive controls verified end-to-end at a 375px viewport.
 - Dependency-free local server and 20 automated core game tests.
 
 ## MVP checklist
