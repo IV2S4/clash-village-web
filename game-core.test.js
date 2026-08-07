@@ -8,6 +8,7 @@ import {
   generateRaidTargets,
   getBuildingLevel,
   getCapacity,
+  getOnboardingProgress,
   getProductionRates,
   getTrainingQueueCapacity,
   getUpgradeCost,
@@ -24,7 +25,33 @@ test("a new village starts with a hearth and starter resources", () => {
 
   assert.equal(state.buildings.length, 1);
   assert.equal(state.buildings[0].type, "hearth");
+  assert.equal(state.onboardingDismissed, false);
   assert.deepEqual(state.resources, { timber: 150, stone: 100, grain: 80 });
+});
+
+test("onboarding progress follows the path from production to a first raid", () => {
+  let state = createInitialState(1_000);
+  assert.deepEqual(getOnboardingProgress(state), {
+    resourceBuilding: false,
+    musterLodge: false,
+    trailguard: false,
+    firstRaid: false,
+  });
+
+  state = placeBuilding(state, "timberYard", 0, 0, 1_000).state;
+  state = placeBuilding(state, "musterLodge", 1, 0, 1_000).state;
+  state = trainTroop(state, "trailguard", 1_000).state;
+  assert.deepEqual(getOnboardingProgress(state), {
+    resourceBuilding: true,
+    musterLodge: true,
+    trailguard: true,
+    firstRaid: false,
+  });
+
+  state = advanceState(state, 9_000);
+  state = resolveRaid(state, state.raidTargets[0].id, 1, 9_000).state;
+  assert.equal(getOnboardingProgress(state).firstRaid, true);
+  assert.equal(getOnboardingProgress(state).trailguard, true);
 });
 
 test("placing a producer deducts its cost and starts production", () => {
@@ -250,11 +277,13 @@ test("legacy saves hydrate with an empty army and training queue", () => {
   delete legacy.army;
   delete legacy.trainingQueue;
   delete legacy.nextTrainingId;
+  delete legacy.onboardingDismissed;
 
   const state = hydrateState(legacy, 1_000);
   assert.deepEqual(state.army, { trailguard: 0 });
   assert.deepEqual(state.trainingQueue, []);
   assert.equal(state.nextTrainingId, 1);
+  assert.equal(state.onboardingDismissed, false);
   assert.equal(state.raidTargets.length, 3);
   assert.deepEqual(state.raidStats, { wins: 0, losses: 0 });
 });
